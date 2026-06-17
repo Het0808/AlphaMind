@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     rag_chunk_overlap: int = 150
     rag_top_k: int = 5
 
+    # ── Multi-agent debate ──
+    debate_rounds: int = 2  # number of Bull/Bear exchange rounds before judging
+
     # API server
     api_host: str = "0.0.0.0"
     api_port: int = 8000

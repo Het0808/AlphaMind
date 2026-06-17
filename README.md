@@ -150,6 +150,40 @@ for c in ans.citations:
   a run. Qdrant backend is in-memory (dev), on-disk (`QDRANT_PATH`) or server/cloud
   (`QDRANT_URL`).
 
+## ⚖️ Multi-agent debate (Bull vs Bear, judged)
+
+`alphamind/debate/` pits two adversarial agents against each other over multiple
+rounds and has a Judge rule on the outcome — surfacing the strongest case on both
+sides instead of a single blended view.
+
+```
+START → bull → bear ──(more rounds?)──► bull        (loop over N rounds)
+                     └──(done)────────► bull_closing → bear_closing → judge → END
+```
+
+- **Multi-round** — Bull and Bear alternate for `DEBATE_ROUNDS` rounds, each
+  advancing new arguments and rebutting the opponent's latest points.
+- **Shared memory** — the append-only `transcript` is read in full before every
+  turn, so the debate genuinely builds round over round.
+- **Structured reasoning** — each turn emits discrete `claims`, `rebuttals` and
+  `evidence` (not prose); each closing thesis lists key points, the single
+  strongest point, and honest weaknesses.
+- **Confidence scores** — every argument, both closing theses, and the judge's
+  verdict carry a calibrated 1-10 confidence.
+
+```python
+from alphamind.debate.graph import run_debate
+
+result = run_debate("AAPL", rounds=2)
+print(result.bull_thesis.thesis)          # Bull Thesis
+print(result.bear_thesis.thesis)          # Bear Thesis
+print(result.judge.winner, result.judge.recommendation, result.confidence)  # Judge Decision + Confidence
+```
+
+**API:** `POST /debate { "ticker": "AAPL", "rounds": 2 }` → `DebateResult`
+(bull thesis, bear thesis, judge decision, confidence, full transcript). The
+debate is grounded in the real multi-source financial briefing by default.
+
 ## 📁 Project structure
 
 ```
@@ -190,6 +224,12 @@ ALphA_MinDs/
 │   │   ├── ingest.py           # download→…→store pipeline (+ CLI)
 │   │   ├── retriever.py        # retrieval + cited answers
 │   │   └── schemas.py          # FilingRef / Citation / RAGAnswer
+│   ├── debate/                 # ── multi-agent Bull/Bear/Judge debate ──
+│   │   ├── agents.py           # bull, bear, judge (+ closings)
+│   │   ├── graph.py            # looped debate graph + run_debate()
+│   │   ├── state.py            # shared-memory transcript state
+│   │   ├── util.py             # round control + transcript rendering
+│   │   └── schemas.py          # DebateArgument / SideThesis / JudgeDecision
 │   └── tools/
 │       ├── financials.py       # tool wrappers over FinancialDataService
 │       ├── research_rag.py     # tool wrapper over the RAG retriever

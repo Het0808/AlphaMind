@@ -6,6 +6,7 @@ Endpoints:
     POST /filings/ingest   — download & index SEC filings into Qdrant (RAG)
     POST /filings/search   — semantic search over filings, returns cited chunks
     POST /filings/qa       — RAG answer over filings with exact citations
+    POST /debate           — multi-round Bull/Bear/Judge debate with confidence
 """
 
 from __future__ import annotations
@@ -118,6 +119,29 @@ def filings_qa(req: FilingQARequest) -> dict:
     except Exception as exc:  # noqa: BLE001
         logger.exception("Filings QA failed for %s", req.ticker)
         raise HTTPException(status_code=500, detail=f"Filings QA failed: {exc}") from exc
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Multi-agent debate
+# ──────────────────────────────────────────────────────────────────────────
+class DebateRequest(BaseModel):
+    ticker: str
+    rounds: Optional[int] = None
+
+
+@app.post("/debate")
+def debate_endpoint(req: DebateRequest) -> dict:
+    """Run a Bull/Bear/Judge debate and return theses, verdict and confidence."""
+    settings = get_settings()
+    if not settings.is_configured:
+        raise HTTPException(status_code=503, detail="OPENAI_API_KEY is not configured.")
+    try:
+        from alphamind.debate.graph import run_debate
+
+        return run_debate(req.ticker, rounds=req.rounds).model_dump()
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Debate failed for %s", req.ticker)
+        raise HTTPException(status_code=500, detail=f"Debate failed: {exc}") from exc
 
 
 def run() -> None:
