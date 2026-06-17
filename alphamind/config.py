@@ -32,6 +32,17 @@ class Settings(BaseSettings):
     enable_fmp: bool = True
     data_cache_ttl: int = 3600  # seconds to cache a financial snapshot
 
+    # ── RAG over SEC filings ──
+    enable_rag: bool = False  # off by default so the graph runs without a vector store
+    embedding_model: str = "text-embedding-3-small"
+    qdrant_url: str = ""          # e.g. http://localhost:6333 or a Qdrant Cloud URL
+    qdrant_api_key: str = ""      # for Qdrant Cloud
+    qdrant_path: str = ""         # on-disk local store, e.g. ./qdrant_data
+    qdrant_collection: str = "alphamind_filings"
+    rag_chunk_size: int = 1200
+    rag_chunk_overlap: int = 150
+    rag_top_k: int = 5
+
     # API server
     api_host: str = "0.0.0.0"
     api_port: int = 8000

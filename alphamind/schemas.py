@@ -73,6 +73,11 @@ class ResearchReport(BaseModel):
     competitive_threats: List[str] = Field(..., description="Key competitors / threats.")
     bull_case: str
     bear_case: str
+    filing_citations: List[str] = Field(
+        default_factory=list,
+        description="Exact SEC filing references supporting the analysis, "
+        "e.g. 'AAPL 10-K filed 2024-11-01 (accession ...), Item 1A Risk Factors'.",
+    )
 
 
 class FinancialReport(BaseModel):
