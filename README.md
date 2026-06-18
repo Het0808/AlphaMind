@@ -300,6 +300,38 @@ metrics into `langsmith.evaluate` evaluators; enable tracing via
 `LANGCHAIN_TRACING_V2`. **Ragas** (`ragas_eval.py`) — reference faithfulness/
 retrieval scoring. Both lazy-imported and degrade gracefully.
 
+## 💼 Portfolio Advisor agent
+
+`alphamind/portfolio/` takes a **risk profile** + holdings and returns per-position
+actions — **BUY / HOLD / REDUCE / AVOID** — with reasoning, after analyzing four
+dimensions:
+
+- **Diversification** — HHI, effective number of holdings, top-position concentration.
+- **Sector exposure** — sector weights vs the profile's cap, overweight flags.
+- **Portfolio risk** — weighted risk score + beta, risk level, alignment to tolerance.
+- **Expected returns** — weighted (and risk-adjusted) return vs the target.
+
+Risk tolerance (conservative / balanced / aggressive) sets the position/sector
+caps and acceptable risk band. The action engine is **deterministic and
+explainable** (overweight → REDUCE, sell-rated → AVOID/REDUCE, buy-rated + room →
+BUY); an optional LLM adds the portfolio-level narrative.
+
+```python
+from alphamind.portfolio.advisor import advise
+from alphamind.portfolio.schemas import PortfolioInput, RiskProfile, RiskTolerance, Holding
+
+advice = advise(PortfolioInput(
+    risk_profile=RiskProfile(risk_tolerance=RiskTolerance.BALANCED, target_return=0.08),
+    holdings=[Holding(ticker="NVDA", weight=0.4, sector="Tech", recommendation="BUY", conviction=8, risk_score=6), ...],
+), use_llm=False)
+
+for p in advice.positions:
+    print(p.ticker, p.action.value, "→", f"{p.target_weight:.0%}", "|", p.reasoning)
+```
+
+**API:** `POST /portfolio/advise` → `PortfolioAdvice` (the four analyses, per-position
+actions, overall assessment, prioritized rebalancing actions).
+
 ## 🖥️ Frontend (Next.js terminal)
 
 A professional **Bloomberg Terminal × OpenAI** research UI lives in `frontend/`
@@ -386,6 +418,11 @@ ALphA_MinDs/
 │   │   ├── datasets.py         # golden set + loader
 │   │   ├── run.py              # CLI → report JSON
 │   │   └── schemas.py          # EvalSample / AgentOutput / EvalReport
+│   ├── portfolio/              # ── Portfolio Advisor agent ──
+│   │   ├── analytics.py        # diversification/sector/risk/return + rec engine
+│   │   ├── agent.py            # optional LLM narrative
+│   │   ├── advisor.py          # orchestrator → PortfolioAdvice
+│   │   └── schemas.py          # RiskProfile / Holding / PortfolioAdvice
 │   └── tools/
 │       ├── financials.py       # tool wrappers over FinancialDataService
 │       ├── research_rag.py     # tool wrapper over the RAG retriever

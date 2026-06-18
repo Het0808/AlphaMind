@@ -14,6 +14,7 @@ Endpoints:
     GET  /mcp/servers      — configured MCP servers (secrets redacted)
     POST /mcp/connect      — connect to MCP servers, discover tools
     POST /mcp/agent        — run the MCP-powered agent (dynamic tool use)
+    POST /portfolio/advise — risk-profiled portfolio recommendations (BUY/HOLD/REDUCE/AVOID)
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ from pydantic import BaseModel, Field
 
 from alphamind.config import get_settings
 from alphamind.graph import analyze
+from alphamind.portfolio.schemas import PortfolioInput
 from alphamind.schemas import AnalysisRequest, InvestmentReport
 
 logging.basicConfig(level=get_settings().log_level)
@@ -251,6 +253,21 @@ def mcp_agent(req: MCPAgentRequest) -> dict:
         return {"query": req.query, "answer": run_mcp_agent_sync(req.query)}
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=f"MCP agent failed: {exc}") from exc
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Portfolio Advisor
+# ──────────────────────────────────────────────────────────────────────────
+@app.post("/portfolio/advise")
+def portfolio_advise(req: PortfolioInput, use_llm: bool = True) -> dict:
+    """Analyze diversification/sector/risk/returns and recommend BUY/HOLD/REDUCE/AVOID."""
+    try:
+        from alphamind.portfolio.advisor import advise
+
+        return advise(req, use_llm=use_llm and get_settings().is_configured).model_dump()
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Portfolio advice failed")
+        raise HTTPException(status_code=500, detail=f"Portfolio advice failed: {exc}") from exc
 
 
 def run() -> None:
