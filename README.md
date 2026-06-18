@@ -347,6 +347,34 @@ cd frontend && npm install && npm run dev   # http://localhost:3000
 Ships with mock data and a graceful API client, so it renders with **no backend**;
 set `NEXT_PUBLIC_API_URL=http://localhost:8000` to go live. See `frontend/README.md`.
 
+## 🚀 Production
+
+AlphaMind ships production-ready: containers, CI/CD, and a hardened API.
+
+| Concern | How |
+|---------|-----|
+| **Docker** | Multi-stage non-root `Dockerfile` (gunicorn + uvicorn), `frontend/Dockerfile`, `docker-compose.yml` (api + frontend + Postgres + Qdrant + Redis) |
+| **CI/CD · GitHub Actions** | `ci.yml` (ruff + pytest + frontend build), `docker-publish.yml` (build & push images to GHCR/ECR), `codeql.yml` (SAST) |
+| **Monitoring** | Prometheus `/metrics` (request count + latency histograms); `/health`, `/ready`, `/version` probes |
+| **Logging** | Structured JSON logs (`LOG_JSON=true`) with a per-request `X-Request-ID` propagated into every log line |
+| **Rate limiting** | Fixed-window limiter per API-key/IP (`RATE_LIMIT_*`); 429 + `Retry-After`; Redis-ready for multi-instance |
+| **Authentication** | API-key auth (`X-API-Key` / `Bearer`), enabled via `AUTH_ENABLED` + `API_KEYS`; ops endpoints exempt |
+| **API versioning** | Business endpoints under `/v1`; ops endpoints unversioned |
+| **Tests** | Unit (rate limiter, auth, all agent/metric cores) + integration (TestClient: versioning, auth, rate limit, metrics) |
+
+```bash
+docker compose up --build        # full local stack
+# or: gunicorn api.main:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+
+curl localhost:8000/health       # {"status":"ok"}
+curl localhost:8000/version      # {"version":...,"api_version":"v1",...}
+curl -X POST localhost:8000/v1/portfolio/advise -H 'X-API-Key: <key>' -d '{...}'
+```
+
+**AWS deployment architecture** (ECS Fargate · ALB · RDS · ElastiCache · Qdrant ·
+ECR · Secrets Manager · CloudWatch · WAF) is documented in
+[`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md).
+
 ## 📁 Project structure
 
 ```

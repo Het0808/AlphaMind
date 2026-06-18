@@ -70,6 +70,30 @@ class Settings(BaseSettings):
     langsmith_project: str = "alphamind"
     langchain_tracing_v2: bool = False
 
+    # ── Production / serving ──
+    environment: str = "development"     # development | staging | production
+    git_sha: str = "dev"                  # injected at build time
+    log_json: bool = False                # structured JSON logs (enable in prod)
+    cors_origins: str = "*"               # comma-separated allowed origins
+    # Authentication (API keys)
+    auth_enabled: bool = False
+    api_keys: str = ""                    # comma-separated accepted API keys
+    # Rate limiting (fixed-window per client)
+    rate_limit_enabled: bool = True
+    rate_limit_requests: int = 60         # requests per window
+    rate_limit_window: int = 60           # window in seconds
+    redis_url: str = ""                   # optional, for distributed rate limiting
+    # Observability
+    metrics_enabled: bool = True
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()] or ["*"]
+
+    @property
+    def api_key_set(self) -> set[str]:
+        return {k.strip() for k in self.api_keys.split(",") if k.strip()}
+
     # API server
     api_host: str = "0.0.0.0"
     api_port: int = 8000
