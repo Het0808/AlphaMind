@@ -12,8 +12,10 @@ import { CitationList } from "@/components/citations/CitationList";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCompanyStore } from "@/lib/store";
+import { useCurrencyStore } from "@/lib/currency";
+import { formatMoney, nativeSymbol } from "@/lib/currency-format";
 import { mockCitationsFor } from "@/lib/mock";
-import { fmtCurrency, fmtNumber } from "@/lib/utils";
+import { fmtNumber } from "@/lib/utils";
 
 export default function CompanyAnalysis() {
   const report = useCompanyStore((s) => s.analysisData);
@@ -21,6 +23,7 @@ export default function CompanyAnalysis() {
   const debate = useCompanyStore((s) => s.debateData);
   const loading = useCompanyStore((s) => s.loading);
   const selectedTicker = useCompanyStore((s) => s.selectedTicker);
+  const rate = useCurrencyStore((s) => s.rate);
 
   const header = (
     <SectionHeading
@@ -65,13 +68,16 @@ export default function CompanyAnalysis() {
         </CardContent>
       </Card>
 
+      <div className="flex items-center justify-between">
+        <span className="label">Monetary values in INR{m.currency !== "INR" ? ` · converted @ ₹${rate.toFixed(2)}/USD` : ""}</span>
+      </div>
       <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        <StatCard label="Market cap" value={fmtCurrency(m.market_cap)} />
-        <StatCard label="Revenue" value={fmtCurrency(m.revenue)} tone="up" />
-        <StatCard label="Net income" value={fmtCurrency(m.net_income)} tone="up" />
-        <StatCard label="EPS" value={fmtNumber(m.eps)} />
-        <StatCard label="P/E" value={fmtNumber(m.pe_ratio)} tone="warn" />
-        <StatCard label="Free cash flow" value={fmtCurrency(m.free_cash_flow)} tone="up" />
+        <StatCard label="Market cap (INR)" value={formatMoney(m.market_cap, m.currency, rate)} />
+        <StatCard label="Revenue (INR)" value={formatMoney(m.revenue, m.currency, rate)} tone="up" />
+        <StatCard label="Net income (INR)" value={formatMoney(m.net_income, m.currency, rate)} tone="up" />
+        <StatCard label="EPS (not converted)" value={`${nativeSymbol(m.currency)}${fmtNumber(m.eps)}`} />
+        <StatCard label="P/E (ratio)" value={fmtNumber(m.pe_ratio)} tone="warn" />
+        <StatCard label="Free cash flow (INR)" value={formatMoney(m.free_cash_flow, m.currency, rate)} tone="up" />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

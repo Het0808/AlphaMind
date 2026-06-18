@@ -9,14 +9,17 @@ import { PriceArea, MetricBars, RiskRadar } from "@/components/charts/Charts";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCompanyStore } from "@/lib/store";
+import { useCurrencyStore } from "@/lib/currency";
+import { formatMoney, nativeSymbol, toINR } from "@/lib/currency-format";
 import { mockPriceSeriesFor } from "@/lib/mock";
-import { fmtCurrency, fmtNumber } from "@/lib/utils";
+import { fmtNumber } from "@/lib/utils";
 
 export default function FinancialDashboard() {
   const snap = useCompanyStore((s) => s.financialData);
   const report = useCompanyStore((s) => s.analysisData);
   const loading = useCompanyStore((s) => s.loading);
   const selectedTicker = useCompanyStore((s) => s.selectedTicker);
+  const rate = useCurrencyStore((s) => s.rate);
 
   const header = (
     <SectionHeading
@@ -40,11 +43,13 @@ export default function FinancialDashboard() {
   const pxChange = ((lastPx - firstPx) / firstPx) * 100;
   const cur = m.currency === "INR" ? "₹" : "$";
 
+  // All bars converted to INR, shown in Lakh-Crore (₹ L Cr = 1e12).
+  const toBar = (v?: number | null) => toINR(v ?? 0, m.currency, rate) / 1e12;
   const incomeBars = [
-    { name: "Revenue", value: (m.revenue ?? 0) / 1e9 },
-    { name: "Net inc.", value: (m.net_income ?? 0) / 1e9 },
-    { name: "Op. CF", value: (m.operating_cash_flow ?? 0) / 1e9 },
-    { name: "FCF", value: (m.free_cash_flow ?? 0) / 1e9 },
+    { name: "Revenue", value: toBar(m.revenue) },
+    { name: "Net inc.", value: toBar(m.net_income) },
+    { name: "Op. CF", value: toBar(m.operating_cash_flow) },
+    { name: "FCF", value: toBar(m.free_cash_flow) },
   ];
   const riskAxes = [
     { axis: "Market", value: report.risk.risk_score },
@@ -60,11 +65,11 @@ export default function FinancialDashboard() {
 
       <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
         <StatCard label="Price (indicative)" value={`${cur}${lastPx.toFixed(2)}`} tone={pxChange >= 0 ? "up" : "down"} sub={`${pxChange >= 0 ? "+" : ""}${pxChange.toFixed(1)}% (60d)`} />
-        <StatCard label="Market cap" value={fmtCurrency(m.market_cap)} />
-        <StatCard label="P/E" value={fmtNumber(m.pe_ratio)} tone="warn" />
-        <StatCard label="EPS" value={fmtNumber(m.eps)} />
-        <StatCard label="Revenue" value={fmtCurrency(m.revenue)} tone="up" />
-        <StatCard label="FCF" value={fmtCurrency(m.free_cash_flow)} tone="up" />
+        <StatCard label="Market cap (INR)" value={formatMoney(m.market_cap, m.currency, rate)} />
+        <StatCard label="P/E (ratio)" value={fmtNumber(m.pe_ratio)} tone="warn" />
+        <StatCard label="EPS (not converted)" value={`${nativeSymbol(m.currency)}${fmtNumber(m.eps)}`} />
+        <StatCard label="Revenue (INR)" value={formatMoney(m.revenue, m.currency, rate)} tone="up" />
+        <StatCard label="FCF (INR)" value={formatMoney(m.free_cash_flow, m.currency, rate)} tone="up" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
@@ -83,7 +88,7 @@ export default function FinancialDashboard() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle>Income & cash flow ({cur}B, latest FY)</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Income & cash flow (₹ Lakh Cr, latest FY)</CardTitle></CardHeader>
           <CardContent><MetricBars data={incomeBars} /></CardContent>
         </Card>
         <Card>

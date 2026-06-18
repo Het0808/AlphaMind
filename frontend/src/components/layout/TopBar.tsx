@@ -3,9 +3,12 @@
 import { Menu } from "lucide-react";
 import { usingMock } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
+import { useCurrencyStore } from "@/lib/currency";
 
 /** Bloomberg-style ticker tape + data-source status, with a mobile menu button. */
 export function TopBar({ onMenu }: { onMenu?: () => void }) {
+  const rate = useCurrencyStore((s) => s.rate);
+  const fxSource = useCurrencyStore((s) => s.source);
   const tape = [
     { s: "NVDA", p: "182.34", c: "+2.1%", up: true },
     { s: "AAPL", p: "238.12", c: "-0.4%", up: false },
@@ -35,6 +38,9 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
+        <Badge variant="info" title={`USD→INR (${fxSource})`} className="mono hidden sm:inline-flex">
+          USD/INR ₹{rate.toFixed(2)}
+        </Badge>
         {usingMock ? <Badge variant="warn">Demo data</Badge> : <Badge variant="bull">Live · API</Badge>}
       </div>
     </header>

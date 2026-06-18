@@ -6,6 +6,7 @@ import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCompanyStore } from "@/lib/store";
+import { useCurrencyStore } from "@/lib/currency";
 
 /** Responsive shell + global-state bootstrap + route/company debug logging. */
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -13,13 +14,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = React.useState(false);
 
   const bootstrap = useCompanyStore((s) => s.bootstrap);
+  const refreshFx = useCurrencyStore((s) => s.refresh);
   const selectedCompany = useCompanyStore((s) => s.selectedCompany);
   const selectedTicker = useCompanyStore((s) => s.selectedTicker);
   const pathname = usePathname();
 
   // Mount gate avoids a hydration mismatch between SSR (empty) and the
-  // localStorage-rehydrated client store; also bootstraps the default company.
-  React.useEffect(() => { setMounted(true); bootstrap(); }, [bootstrap]);
+  // localStorage-rehydrated client store; bootstraps the company + FX rate.
+  React.useEffect(() => { setMounted(true); bootstrap(); refreshFx(); }, [bootstrap, refreshFx]);
 
   // Debug logging on every navigation.
   React.useEffect(() => {
