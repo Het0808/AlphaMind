@@ -267,6 +267,39 @@ servers expose — it inspects the registry and decides which to call. **API:**
 run via `npx` (Node.js required); the Financial server is pure-Python
 (`python -m alphamind.mcp.servers.financial_server`). Off by default (`ENABLE_MCP`).
 
+## 📊 LLM evaluation framework (LangSmith + Ragas)
+
+`alphamind/eval/` scores agent outputs across five metrics, aggregates them into a
+report with **failure analysis**, and ships a Streamlit **dashboard**.
+
+| Metric | What it measures | How |
+|--------|------------------|-----|
+| **Faithfulness** | Are answer claims grounded in context? | claim-support core / Ragas |
+| **Hallucination rate** | Fraction of unsupported claims (lower better) | claim-support core |
+| **Retrieval quality** | Retrieved vs. gold-relevant contexts (F1) | overlap core / Ragas |
+| **Tool-usage accuracy** | Tools used vs. expected (F1) | deterministic |
+| **Response completeness** | Required points covered by the answer | coverage core |
+
+Each metric has a **deterministic core** (no LLM needed → fully unit-tested), and
+Ragas can swap in LLM-graded faithfulness/retrieval when references exist.
+
+```bash
+# Score pre-computed outputs offline, or run the live pipeline as the target:
+python -m alphamind.eval.run --outputs outputs.json --out eval_report.json
+python -m alphamind.eval.run --live --langsmith        # push results to LangSmith
+
+streamlit run ui/eval_dashboard.py                      # dashboard
+```
+
+**Dashboard** shows: overall quality + per-metric **evaluation scores** (avg & pass
+rate), **agent performance** (agent × metric breakdown), and **failure analysis**
+(every failed metric with its reason, filterable, plus per-sample drill-down).
+
+**LangSmith** (`langsmith_eval.py`) — push report runs/feedback and adapt the
+metrics into `langsmith.evaluate` evaluators; enable tracing via
+`LANGCHAIN_TRACING_V2`. **Ragas** (`ragas_eval.py`) — reference faithfulness/
+retrieval scoring. Both lazy-imported and degrade gracefully.
+
 ## 📁 Project structure
 
 ```
@@ -329,6 +362,15 @@ ALphA_MinDs/
 │   │   ├── agent.py            # ReAct agent over discovered tools
 │   │   ├── schemas.py          # MCPServerSpec / ToolInfo
 │   │   └── servers/financial_server.py  # local Financial Data MCP server
+│   ├── eval/                   # ── LLM evaluation framework ──
+│   │   ├── metrics.py          # 5 metrics (deterministic cores)
+│   │   ├── report.py           # aggregation + failure analysis
+│   │   ├── runner.py           # EvaluationRunner
+│   │   ├── ragas_eval.py       # Ragas integration
+│   │   ├── langsmith_eval.py   # LangSmith datasets/feedback/evaluators
+│   │   ├── datasets.py         # golden set + loader
+│   │   ├── run.py              # CLI → report JSON
+│   │   └── schemas.py          # EvalSample / AgentOutput / EvalReport
 │   └── tools/
 │       ├── financials.py       # tool wrappers over FinancialDataService
 │       ├── research_rag.py     # tool wrapper over the RAG retriever

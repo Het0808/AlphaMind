@@ -28,3 +28,5 @@ data/
 cache/
 qdrant_data/
 *.qdrant
+eval_report.json
+*.eval.json

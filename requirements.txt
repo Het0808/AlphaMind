@@ -35,5 +35,9 @@ mcp>=1.2.0                     # MCP Python SDK (clients + our financial server)
 langchain-mcp-adapters>=0.1.0  # expose MCP tools as LangChain/LangGraph tools
 langgraph>=0.2.40              # create_react_agent for the MCP-powered agent
 
+# --- LLM evaluation framework ---
+ragas>=0.2.0                   # faithfulness / retrieval metrics
+langsmith>=0.1.100             # tracing, datasets, evaluation runs + feedback
+
 # --- Tooling (optional, dev) ---
 pytest>=8.0.0

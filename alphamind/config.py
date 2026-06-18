@@ -63,6 +63,13 @@ class Settings(BaseSettings):
     mcp_enable_browser: bool = True
     mcp_enable_financial: bool = True
 
+    # ── LLM evaluation ──
+    eval_threshold: float = 0.7  # default pass threshold for metrics
+    eval_report_path: str = "eval_report.json"
+    langsmith_api_key: str = ""
+    langsmith_project: str = "alphamind"
+    langchain_tracing_v2: bool = False
+
     # API server
     api_host: str = "0.0.0.0"
     api_port: int = 8000
