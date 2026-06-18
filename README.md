@@ -110,6 +110,27 @@ print(snap.field_sources)       # which provider supplied each field
 > ℹ️ EDGAR requires a descriptive `SEC_USER_AGENT` with a real contact email.
 > Without an `FMP_API_KEY`, FMP self-disables and Yahoo + EDGAR carry the load.
 
+## 🛡️ Financial data quality (validation · cross-source · fail-safe)
+
+`alphamind/data/validation.py` + `quality.py` turn raw provider data into
+trustworthy, traceable metrics — every value carries a source, confidence and
+validation status (surfaced on the **Data Quality dashboard**, `/quality`).
+
+- **Universal model** — price, market cap, revenue, net income, EPS, P/E, EBITDA,
+  FCF, EV, ROE, ROCE, each with a unit (currency / per-share / ratio / percent).
+- **Validation layer** — unit, currency (`.NS`/`.BO` ⇒ INR), range, and
+  cross-field identities (P/E ≈ market cap ÷ net income, FCF ≤ OCF, …).
+- **Cross-source verification** — every provider's value per field is collected
+  and compared; agreement is scored **only among same reporting period** (Yahoo
+  TTM is not compared with EDGAR annual). Confidence blends agreement + source
+  authority (EDGAR > FMP > Yahoo).
+- **Fail-safe** — fields below the confidence threshold are hidden as
+  **"Data unavailable"** rather than shown as an unverified guess.
+- **Currency** — Indian stocks in INR with crore/lakh-crore notation
+  (`₹2.3 L Cr`); US stocks show USD + converted INR (`$3.2T (₹274T)`) via a
+  cached, auto-refreshing USD/INR Currency Service. Only magnitudes convert —
+  EPS / P/E / ratios stay native. **API:** `GET /v1/quality/{ticker}`.
+
 ## 📚 RAG over SEC filings (LangChain · Qdrant · OpenAI embeddings)
 
 `alphamind/rag/` builds a retrieval-augmented pipeline over primary-source SEC
@@ -335,17 +356,28 @@ actions, overall assessment, prioritized rebalancing actions).
 ## 🖥️ Frontend (Next.js terminal)
 
 A professional **Bloomberg Terminal × OpenAI** research UI lives in `frontend/`
-(Next.js 14 · TypeScript · Tailwind · shadcn-style · Recharts). Six pages —
-Research Workspace, Company Analysis, Agent Reasoning Viewer, Financial Dashboard,
-Portfolio Advisor, Evaluation Dashboard — displaying agent thoughts, debate
-history, citations, financial charts, risk scores and confidence metrics.
+(Next.js 14 · TypeScript · Tailwind · shadcn-style · Recharts). Seven pages —
+Research Workspace, Company Analysis, Agent Reasoning, Financial Dashboard,
+Portfolio Advisor, **Data Quality**, Evaluation — displaying agent thoughts,
+debate history, citations, charts, risk scores and confidence metrics.
+
+- **Global state (Zustand)** — the selected company is one source of truth,
+  persisted to localStorage; search a ticker on any page and every page follows
+  it (navigation/refresh never reset it).
+- **INR-first money** — Indian crore/lakh-crore notation; US shows USD + converted
+  INR via the Currency Service; the top bar shows the live USD/INR rate.
+- **Fail-safe rendering** — financial metrics are live-only; unverified fields
+  show "Data unavailable" instead of demo numbers.
+- **Responsive** — glassmorphism cards, mobile slide-over sidebar, skeleton +
+  empty states, premium `next/font` typography.
 
 ```bash
 cd frontend && npm install && npm run dev   # http://localhost:3000
 ```
 
-Ships with mock data and a graceful API client, so it renders with **no backend**;
-set `NEXT_PUBLIC_API_URL=http://localhost:8000` to go live. See `frontend/README.md`.
+Set `NEXT_PUBLIC_API_URL=http://localhost:8000` to pull **live** data (SEC EDGAR +
+Yahoo, no keys needed). LLM narratives (analyze/debate) use demo text until an
+`OPENAI_API_KEY` is set. See `frontend/README.md`.
 
 ## 🎯 Works for ANY ticker — Ticker Resolution Layer
 
@@ -540,8 +572,15 @@ print(report.model_dump_json(indent=2))
 ## 🧪 Tests
 
 ```bash
-make test     # structural tests run without an OpenAI key
+pytest -q                       # backend: 99 pass, 1 skipped (no keys/network needed)
+cd frontend && npx vitest run   # frontend: currency formatting (9 pass)
 ```
+
+The backend suite is fully offline — deterministic cores (validation, quality,
+portfolio, resolver, eval metrics, rate-limiter) plus FastAPI integration tests
+(auth, versioning, rate-limit) and fake-provider data-quality tests across
+**TCS.NS, INFY.NS, RELIANCE.NS, AAPL, MSFT, NVDA**. Tests needing LangGraph skip
+cleanly when it isn't installed.
 
 ---
 

@@ -1,8 +1,14 @@
 """Structural tests that need no API key — they verify wiring, not LLM output."""
 
-from alphamind.graph import build_graph
-from alphamind.schemas import AnalysisRequest, InvestmentReport
-from alphamind.state import AgentState
+import pytest
+
+# These tests exercise the compiled LangGraph; skip cleanly where langgraph isn't
+# installed instead of erroring out and interrupting the whole suite.
+pytest.importorskip("langgraph")
+
+from alphamind.graph import build_graph  # noqa: E402
+from alphamind.schemas import AnalysisRequest, InvestmentReport  # noqa: E402
+from alphamind.state import AgentState  # noqa: E402
 
 
 def test_graph_compiles_with_expected_nodes():
