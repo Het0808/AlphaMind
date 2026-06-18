@@ -12,6 +12,7 @@ import { RecommendationBadge } from "@/components/shared/RecommendationBadge";
 import { ConfidenceMeter } from "@/components/shared/ConfidenceMeter";
 import { RiskGauge } from "@/components/shared/RiskGauge";
 import { AgentTrace } from "@/components/agents/AgentTrace";
+import { AgentStatusBar } from "@/components/shared/AgentStatus";
 import { CitationList } from "@/components/citations/CitationList";
 import { api } from "@/lib/api";
 import { DEFAULT_TICKER } from "@/lib/constants";
@@ -37,6 +38,11 @@ export default function ResearchWorkspace() {
         title="Research Workspace"
         subtitle="Run the full multi-agent pipeline and review the synthesized thesis"
         right={<TickerInput loading={loading} onSubmit={run} />}
+      />
+
+      <AgentStatusBar
+        agents={["Supervisor", "Research", "Financial", "News", "Risk", "Synthesis"]}
+        state={loading ? "running" : "done"}
       />
 
       {loading || !report ? (
