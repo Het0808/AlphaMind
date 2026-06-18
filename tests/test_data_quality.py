@@ -110,6 +110,28 @@ def test_single_source_is_lower_confidence_than_corroborated():
     assert two.quality.field_quality["revenue"].confidence > one.quality.field_quality["revenue"].confidence
 
 
+def test_period_mismatch_not_flagged_as_disagreement():
+    # Yahoo TTM vs EDGAR annual report different revenue numbers (different periods).
+    # These are NOT comparable, so the field must be single_source, not disagreement.
+    ttm = {"AAPL": {**US["AAPL"], "revenue": 4.5e11, "fiscal_period": "TTM"}}
+    annual = {"AAPL": {**US["AAPL"], "revenue": 4.16e11, "fiscal_period": "FY 2025"}}
+    svc = make_service([FakeProvider("yahoo", ttm), FakeProvider("sec_edgar", annual)])
+    q = svc.get_snapshot("AAPL").quality.field_quality["revenue"]
+    assert q.agreement is None
+    assert q.status == "single_source"
+    assert q.periods["yahoo"] == "ttm" and q.periods["sec_edgar"] == "annual"
+    assert set(q.sources) == {"yahoo", "sec_edgar"}
+
+
+def test_same_period_sources_still_corroborate():
+    # Two ANNUAL sources that agree → corroborated (status ok), even with period set.
+    a = {"AAPL": {**US["AAPL"], "fiscal_period": "FY 2025"}}
+    b = {"AAPL": {**US["AAPL"], "fiscal_period": "FY 2025"}}
+    svc = make_service([FakeProvider("sec_edgar", a), FakeProvider("fmp", b, jitter=0.005)])
+    q = svc.get_snapshot("AAPL").quality.field_quality["revenue"]
+    assert q.status == "ok" and q.agreement is not None and q.agreement >= 0.8
+
+
 def test_overall_confidence_and_provenance():
     table = {"INFY.NS": IN["INFY.NS"]}
     snap = make_service([FakeProvider("sec_edgar", table)]).get_snapshot("INFY.NS")

@@ -144,8 +144,9 @@ class FieldQuality(BaseModel):
     unit: str = "currency"            # currency | per_share | ratio | percent
     currency: Optional[str] = None
     sources: Dict[str, float] = {}    # provider -> the value it reported
+    periods: Dict[str, str] = {}      # provider -> reporting period bucket (ttm | annual | unknown)
     chosen_source: Optional[str] = None
-    agreement: Optional[float] = None  # 0..1 cross-source agreement (None if <2 sources)
+    agreement: Optional[float] = None  # 0..1 cross-source agreement among SAME-period values
     confidence: float = 0.0            # 0..1
     status: str = "unavailable"        # ok | single_source | disagreement | out_of_range | unavailable
     issues: List[str] = []

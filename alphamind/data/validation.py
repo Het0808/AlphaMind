@@ -135,3 +135,19 @@ def validate_metrics(metrics, ticker: str) -> List[ValidationIssue]:
 
 def unit_of(field: str) -> str:
     return FIELD_UNITS.get(field, "currency")
+
+
+def period_bucket(fiscal_period: Optional[str]) -> str:
+    """Coarse reporting-period bucket so we only cross-verify like-for-like.
+
+    Yahoo reports trailing-twelve-months; EDGAR/FMP statements are annual — those
+    are NOT directly comparable, so they must not be flagged as 'disagreement'.
+    """
+    if not fiscal_period:
+        return "unknown"
+    f = fiscal_period.lower()
+    if "ttm" in f:
+        return "ttm"
+    if "fy" in f or "annual" in f or "ending" in f or "quarter" in f:
+        return "annual"
+    return "unknown"

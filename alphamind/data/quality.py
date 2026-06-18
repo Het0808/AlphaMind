@@ -15,7 +15,7 @@ import statistics
 from typing import Dict, List, Optional
 
 from .schemas import FieldQuality, NUMERIC_METRIC_FIELDS, QualityReport
-from .validation import ValidationIssue, unit_of
+from .validation import ValidationIssue, period_bucket, unit_of
 
 # How much to trust a single source on its own (0..1).
 SOURCE_AUTHORITY = {
@@ -73,6 +73,7 @@ def build_quality(
     tolerance: float,
     threshold: float,
     last_updated: str,
+    provider_period: Optional[Dict[str, str]] = None,
 ) -> QualityReport:
     """Assemble a QualityReport and return it (caller applies the fail-safe)."""
     issues_by_field: Dict[str, List[ValidationIssue]] = {}
@@ -82,13 +83,21 @@ def build_quality(
     field_quality: Dict[str, FieldQuality] = {}
     confidences: List[float] = []
 
+    provider_period = provider_period or {}
     for field in NUMERIC_METRIC_FIELDS:
         srcs = {p: v for p, v in candidates.get(field, {}).items() if isinstance(v, (int, float))}
+        periods = {p: period_bucket(provider_period.get(p)) for p in srcs}
         value = chosen.get(field)
         fissues = issues_by_field.get(field, [])
         has_error = any(i.severity == "error" for i in fissues)
         has_warning = any(i.severity == "warning" for i in fissues)
-        agreement = agreement_score(list(srcs.values()), tolerance)
+
+        # Cross-verify only within the same reporting period (TTM vs annual differ).
+        by_period: Dict[str, List[float]] = {}
+        for p, v in srcs.items():
+            by_period.setdefault(periods[p], []).append(v)
+        comparable = max(by_period.values(), key=len) if by_period else []
+        agreement = agreement_score(comparable, tolerance) if len(comparable) >= 2 else None
         confidence = field_confidence(srcs, agreement, has_error, has_warning) if value is not None else 0.0
 
         if value is None:
@@ -97,14 +106,14 @@ def build_quality(
             status = "out_of_range"
         elif agreement is not None and agreement < 0.5:
             status = "disagreement"
-        elif len(srcs) >= 2:
-            status = "ok"
+        elif agreement is not None:
+            status = "ok"                 # 2+ same-period sources corroborate
         else:
-            status = "single_source"
+            status = "single_source"      # one source, or sources span different periods
 
         field_quality[field] = FieldQuality(
             field=field, value=value, unit=unit_of(field), currency=currency if unit_of(field) == "currency" else None,
-            sources=srcs, chosen_source=field_sources.get(field),
+            sources=srcs, periods=periods, chosen_source=field_sources.get(field),
             agreement=agreement, confidence=confidence, status=status,
             issues=[i.message for i in fissues],
         )

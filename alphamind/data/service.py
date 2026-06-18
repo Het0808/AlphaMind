@@ -89,12 +89,14 @@ class FinancialDataService:
         metrics_raw: Dict[str, Any] = {}
         # candidates[field][provider] = value — powers cross-source verification.
         candidates: Dict[str, Dict[str, float]] = {}
+        provider_period: Dict[str, str] = {}  # provider -> its reported fiscal_period
         field_sources: Dict[str, str] = {}
         warnings: List[str] = []
 
         for provider in self._active:
             self._collect(provider, "overview", ticker, OVERVIEW_FIELDS, overview_raw, candidates, field_sources, warnings)
-            self._collect(provider, "metrics", ticker, METRIC_FIELDS, metrics_raw, candidates, field_sources, warnings)
+            self._collect(provider, "metrics", ticker, METRIC_FIELDS, metrics_raw, candidates, field_sources, warnings,
+                          provider_period=provider_period)
 
         if not overview_raw.get("name") and not any(metrics_raw.get(f) is not None for f in METRIC_FIELDS):
             raise TickerNotFound(f"No data found for '{ticker}' across {self.active_providers}")
@@ -123,6 +125,7 @@ class FinancialDataService:
             tolerance=settings.cross_source_tolerance,
             threshold=settings.data_confidence_threshold,
             last_updated=now,
+            provider_period=provider_period,
         )
         dropped = apply_fail_safe(metrics, quality, settings.data_confidence_threshold)
         if dropped:
@@ -160,6 +163,7 @@ class FinancialDataService:
         candidates: Dict[str, Dict[str, float]],
         field_sources: Dict[str, str],
         warnings: List[str],
+        provider_period: Optional[Dict[str, str]] = None,
     ) -> None:
         """Query one provider; fill missing fields AND record every candidate value."""
         fetch = provider.get_overview if kind == "overview" else provider.get_metrics
@@ -172,6 +176,9 @@ class FinancialDataService:
             logger.exception("Unexpected error from %s.%s", provider.name, kind)
             warnings.append(f"[{provider.name}] unexpected error: {exc}")
             return
+
+        if provider_period is not None and data.get("fiscal_period"):
+            provider_period[provider.name] = data["fiscal_period"]
 
         for field in fields:
             # Non-finite numbers (NaN/inf) are treated as absent so they don't
