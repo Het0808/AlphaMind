@@ -46,6 +46,11 @@ FIELD_UNITS = {
 # Monetary fields are the only ones eligible for currency conversion.
 MONETARY_FIELDS = {f for f, u in FIELD_UNITS.items() if u == "currency"}
 
+# Spot/current fields are period-independent (always "now"), so they are
+# cross-verified across ALL providers regardless of statement period. The rest
+# are statement figures compared only within the same reporting period.
+SPOT_FIELDS = {"price", "market_cap", "pe_ratio", "enterprise_value", "roe", "roce"}
+
 
 def clean_field(field: str, value):
     """Return the merge-ready value for a field, or None if it should be skipped."""

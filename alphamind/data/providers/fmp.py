@@ -1,8 +1,9 @@
-"""Financial Modeling Prep (FMP) provider.
+"""Financial Modeling Prep (FMP) provider — "stable" API.
 
-Rich, normalized fundamentals + market data behind a single REST API. Requires an
-API key (free tier available). Gracefully reports itself unavailable when no key
-is configured so the service simply skips it.
+Rich, normalized fundamentals + market data. Requires an API key (free tier).
+Its annual income statement shares EDGAR's reporting period, so FMP acts as a
+third corroborating source for revenue / net income / EPS cross-verification.
+Gracefully unavailable when no key is configured.
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ from .base import FinancialProvider
 
 logger = logging.getLogger(__name__)
 
-_BASE = "https://financialmodelingprep.com/api/v3"
+_BASE = "https://financialmodelingprep.com/stable"
 
 
 class FMPProvider(FinancialProvider):
@@ -35,12 +36,12 @@ class FMPProvider(FinancialProvider):
     def available(self) -> bool:
         return bool(self.api_key)
 
-    def _get(self, path: str, params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def _get(self, endpoint: str, ticker: str, extra: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         if not self.api_key:
             raise MissingCredentials("FMP_API_KEY not set", provider=self.name)
-        params = {**(params or {}), "apikey": self.api_key}
+        params = {"symbol": ticker, "apikey": self.api_key, **(extra or {})}
         try:
-            resp = httpx.get(f"{_BASE}/{path}", params=params, timeout=self._timeout)
+            resp = httpx.get(f"{_BASE}/{endpoint}", params=params, timeout=self._timeout)
         except httpx.HTTPError as exc:
             raise ProviderUnavailable(str(exc), provider=self.name) from exc
 
@@ -61,7 +62,7 @@ class FMPProvider(FinancialProvider):
         return rows[0] if rows else {}
 
     def get_overview(self, ticker: str) -> Dict[str, Any]:
-        profile = self._first(self._get(f"profile/{ticker}"))
+        profile = self._first(self._get("profile", ticker))
         if not profile:
             raise TickerNotFound(ticker, provider=self.name)
         return {
@@ -69,7 +70,7 @@ class FMPProvider(FinancialProvider):
             "sector": profile.get("sector"),
             "industry": profile.get("industry"),
             "description": profile.get("description"),
-            "exchange": profile.get("exchangeShortName") or profile.get("exchange"),
+            "exchange": profile.get("exchange") or profile.get("exchangeFullName"),
             "currency": profile.get("currency"),
             "country": profile.get("country"),
             "website": profile.get("website"),
@@ -77,26 +78,28 @@ class FMPProvider(FinancialProvider):
         }
 
     def get_metrics(self, ticker: str) -> Dict[str, Any]:
-        profile = self._first(self._get(f"profile/{ticker}"))
-        income = self._first(self._get(f"income-statement/{ticker}", {"period": "annual", "limit": 1}))
-        cash = self._first(self._get(f"cash-flow-statement/{ticker}", {"period": "annual", "limit": 1}))
-        ratios = self._first(self._get(f"ratios-ttm/{ticker}"))
+        profile = self._first(self._get("profile", ticker))
+        income = self._first(self._get("income-statement", ticker, {"period": "annual", "limit": 1}))
+        cash = self._first(self._get("cash-flow-statement", ticker, {"period": "annual", "limit": 1}))
+        ratios = self._first(self._get("ratios-ttm", ticker))
+        key = self._first(self._get("key-metrics-ttm", ticker))
 
         if not any((profile, income, cash, ratios)):
             raise TickerNotFound(ticker, provider=self.name)
 
+        year = income.get("fiscalYear")
         return {
             "price": profile.get("price"),
             "revenue": income.get("revenue"),
             "net_income": income.get("netIncome"),
-            "eps": income.get("eps"),
-            "market_cap": profile.get("mktCap"),
-            "pe_ratio": ratios.get("peRatioTTM"),
+            "eps": income.get("eps") or income.get("epsDiluted"),
+            "market_cap": profile.get("marketCap"),
+            "pe_ratio": ratios.get("priceToEarningsRatioTTM"),
             "ebitda": income.get("ebitda"),
             "operating_cash_flow": cash.get("operatingCashFlow"),
             "free_cash_flow": cash.get("freeCashFlow"),
-            "roe": ratios.get("returnOnEquityTTM"),
-            "roce": ratios.get("returnOnCapitalEmployedTTM"),
-            "fiscal_period": f"FY {income.get('calendarYear')}" if income.get("calendarYear") else "TTM",
+            "enterprise_value": key.get("enterpriseValueTTM"),
+            # Annual income statement → same reporting period as EDGAR (cross-verify).
+            "fiscal_period": f"FY {year}" if year else "annual",
             "currency": income.get("reportedCurrency") or profile.get("currency"),
         }

@@ -14,7 +14,7 @@ from __future__ import annotations
 import statistics
 from typing import Dict, List, Optional
 
-from .schemas import FieldQuality, NUMERIC_METRIC_FIELDS, QualityReport
+from .schemas import FieldQuality, NUMERIC_METRIC_FIELDS, SPOT_FIELDS, QualityReport
 from .validation import ValidationIssue, period_bucket, unit_of
 
 # How much to trust a single source on its own (0..1).
@@ -86,7 +86,8 @@ def build_quality(
     provider_period = provider_period or {}
     for field in NUMERIC_METRIC_FIELDS:
         srcs = {p: v for p, v in candidates.get(field, {}).items() if isinstance(v, (int, float))}
-        periods = {p: period_bucket(provider_period.get(p)) for p in srcs}
+        # Spot fields are period-independent; statement fields use the provider period.
+        periods = {p: ("spot" if field in SPOT_FIELDS else period_bucket(provider_period.get(p))) for p in srcs}
         value = chosen.get(field)
         fissues = issues_by_field.get(field, [])
         has_error = any(i.severity == "error" for i in fissues)
