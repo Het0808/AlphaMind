@@ -9,6 +9,7 @@ import { StatCard } from "@/components/shared/StatCard";
 import { PriceArea, MetricBars, RiskRadar } from "@/components/charts/Charts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
+import { DEFAULT_TICKER } from "@/lib/constants";
 import { mockPriceSeries } from "@/lib/mock";
 import { fmtCurrency, fmtNumber } from "@/lib/utils";
 import type { FinancialSnapshot, InvestmentReport } from "@/lib/types";
@@ -25,7 +26,7 @@ export default function FinancialDashboard() {
     setLoading(false);
   }, []);
 
-  React.useEffect(() => { run("NVDA"); }, [run]);
+  React.useEffect(() => { run(DEFAULT_TICKER); }, [run]);
 
   if (loading || !snap || !report) {
     return (

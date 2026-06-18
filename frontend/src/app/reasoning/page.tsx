@@ -10,6 +10,7 @@ import { ReasoningTimeline } from "@/components/agents/ReasoningTimeline";
 import { DebatePanel } from "@/components/agents/DebatePanel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
+import { DEFAULT_TICKER } from "@/lib/constants";
 import type { DebateResult, InvestmentReport } from "@/lib/types";
 
 const PIPELINE = [
@@ -33,7 +34,7 @@ export default function AgentReasoning() {
     setLoading(false);
   }, []);
 
-  React.useEffect(() => { run("NVDA"); }, [run]);
+  React.useEffect(() => { run(DEFAULT_TICKER); }, [run]);
 
   return (
     <div className="mx-auto max-w-7xl space-y-5">

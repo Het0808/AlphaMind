@@ -347,6 +347,37 @@ cd frontend && npm install && npm run dev   # http://localhost:3000
 Ships with mock data and a graceful API client, so it renders with **no backend**;
 set `NEXT_PUBLIC_API_URL=http://localhost:8000` to go live. See `frontend/README.md`.
 
+## 🎯 Works for ANY ticker — Ticker Resolution Layer
+
+`alphamind/resolver/` turns free-form input (a **company name OR symbol**, US or
+India) into a canonical ticker before the pipeline runs, so the platform analyzes
+any public company — nothing is hardcoded to one stock.
+
+```
+Apple → AAPL   Microsoft → MSFT   Tesla → TSLA   NVIDIA → NVDA
+Reliance → RELIANCE.NS   Infosys → INFY.NS   TCS → TCS.NS
+```
+
+- **Resolution** order: exact alias/name/ticker → symbol pass-through (US `AAPL`,
+  Indian `*.NS`/`*.BO`) → otherwise a `TickerResolutionError` with **fuzzy
+  suggestions** ("Aple Inc" → did you mean Apple (AAPL)?).
+- **State**: the resolved `ticker` + `company_name` are seeded into the LangGraph
+  state and flow to **every** agent (supervisor, research, financial, news, risk,
+  bull, bear, judge) — each reads `state["ticker"]` and logs the ticker it received.
+- **RAG**: chunks are tagged with `ticker` metadata and retrieval filters by it, so
+  one company's filings never leak into another's results.
+- **Memory**: research/company memories are ticker-keyed; `recall(..., company_scoped=True)`
+  isolates a single company to prevent cross-company contamination.
+- **Logging**: user input, resolved company, resolved ticker, and per-agent ticker
+  are all logged.
+
+```python
+from alphamind.resolver import resolve_ticker
+r = resolve_ticker("Reliance")     # → RELIANCE.NS, "Reliance Industries Limited", region=IN
+```
+
+**API:** `POST /v1/resolve {"query": "Apple"}` → resolution, or `400` with suggestions.
+
 ## 🚀 Production
 
 AlphaMind ships production-ready: containers, CI/CD, and a hardened API.

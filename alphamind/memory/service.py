@@ -155,8 +155,9 @@ class MemoryService:
     def recall(
         self, query: str, *, user_id: Optional[str] = None,
         ticker: Optional[str] = None, k: Optional[int] = None,
+        company_scoped: bool = False,
     ) -> MemoryContext:
-        return _recall(self, query, user_id=user_id, ticker=ticker, k=k)
+        return _recall(self, query, user_id=user_id, ticker=ticker, k=k, company_scoped=company_scoped)
 
 
 def get_memory_service() -> MemoryService:

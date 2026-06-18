@@ -14,6 +14,10 @@ from ..schemas import FinancialReport
 from ..state import AgentState
 from ..tools import get_financial_snapshot
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 SYSTEM = (
     "You are a buy-side financial analyst at AlphaMind. Interpret the provided "
     "fundamental metrics into a clear verdict on valuation, profitability, "
@@ -28,6 +32,7 @@ SYSTEM = (
 
 def financial_agent(state: AgentState) -> AgentState:
     ticker = state["ticker"].upper()
+    logger.info("agent=financial ticker received: %s", ticker)
     snapshot = get_financial_snapshot(ticker)
 
     llm = get_llm().with_structured_output(FinancialReport)

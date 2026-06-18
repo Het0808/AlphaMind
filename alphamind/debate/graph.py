@@ -73,15 +73,22 @@ def build_briefing(ticker: str) -> tuple[str, str]:
 
 
 def run_debate(ticker: str, *, rounds: Optional[int] = None, context: Optional[str] = None) -> DebateResult:
-    """Run the full Bull/Bear/Judge debate and return a structured DebateResult."""
-    ticker = ticker.upper()
+    """Run the full Bull/Bear/Judge debate for any company and return a DebateResult.
+
+    `ticker` may be a symbol OR a company name (US/India); it is resolved up front.
+    """
+    from ..resolver import resolve_ticker
+
+    resolution = resolve_ticker(ticker)
+    ticker = resolution.ticker
     rounds = rounds or get_settings().debate_rounds
 
     if context:
-        company_name = ticker
+        company_name = resolution.company_name
         briefing = context
     else:
         briefing, company_name = build_briefing(ticker)
+        company_name = company_name or resolution.company_name
 
     final: DebateState = get_compiled_debate().invoke(
         {

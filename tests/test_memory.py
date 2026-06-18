@@ -98,6 +98,18 @@ def test_cross_session_recall_nvidia_then_amd(service):
            any(h.ticker == "NVDA" for h in ctx.semantic_hits)
 
 
+def test_company_scoped_recall_prevents_contamination(service):
+    # Two companies in one user's memory.
+    service.add_research_record(ticker="NVDA", summary="NVIDIA AI accelerator leader", user_id="u1")
+    service.add_research_record(ticker="AAPL", summary="Apple consumer hardware ecosystem", user_id="u1")
+
+    # Company-scoped recall must return ONLY the requested company's memories.
+    ctx = service.recall("hardware company analysis", user_id="u1", ticker="AAPL", company_scoped=True)
+    assert all(r.ticker == "AAPL" for r in ctx.recent_research)
+    assert all(h.ticker == "AAPL" for h in ctx.semantic_hits)
+    assert not any(r.ticker == "NVDA" for r in ctx.recent_research)
+
+
 def test_recall_dedup_drops_semantic_already_in_recent(service):
     service.add_research_record(ticker="NVDA", summary="NVIDIA AI growth story", user_id="u1")
     ctx = service.recall("NVIDIA AI growth", user_id="u1")

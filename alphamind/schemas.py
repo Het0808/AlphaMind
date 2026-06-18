@@ -45,7 +45,7 @@ class RiskLevel(str, Enum):
 # Request / plan
 # ──────────────────────────────────────────────────────────────────────────
 class AnalysisRequest(BaseModel):
-    ticker: str = Field(..., description="Stock ticker symbol, e.g. AAPL.")
+    ticker: str = Field(..., description="Ticker symbol OR company name (US/India), e.g. AAPL, Apple, Reliance.")
     horizon: str = Field("12 months", description="Investment time horizon.")
     notes: Optional[str] = Field(None, description="Optional analyst focus or constraints.")
     user_id: Optional[str] = Field(None, description="User whose memory to recall / update.")

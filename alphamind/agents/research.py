@@ -56,6 +56,7 @@ def _filing_context(ticker: str) -> str:
 
 def research_agent(state: AgentState) -> AgentState:
     ticker = state["ticker"].upper()
+    logger.info("agent=research ticker received: %s", ticker)
     profile = get_company_profile(ticker)
     rag_context = _filing_context(ticker)
 

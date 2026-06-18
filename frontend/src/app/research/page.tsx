@@ -14,6 +14,7 @@ import { RiskGauge } from "@/components/shared/RiskGauge";
 import { AgentTrace } from "@/components/agents/AgentTrace";
 import { CitationList } from "@/components/citations/CitationList";
 import { api } from "@/lib/api";
+import { DEFAULT_TICKER } from "@/lib/constants";
 import { mockCitations } from "@/lib/mock";
 import type { InvestmentReport } from "@/lib/types";
 
@@ -28,7 +29,7 @@ export default function ResearchWorkspace() {
     setLoading(false);
   }, []);
 
-  React.useEffect(() => { run("NVDA"); }, [run]);
+  React.useEffect(() => { run(DEFAULT_TICKER); }, [run]);
 
   return (
     <div className="mx-auto max-w-7xl space-y-5">

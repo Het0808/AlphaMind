@@ -20,6 +20,10 @@ from .schemas import (
 from .state import DebateState
 from .util import latest_opponent_points, render_transcript
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 _BULL_SYSTEM = (
     "You are the BULL in a structured investment debate. Make the strongest, "
     "intellectually honest case FOR investing in the company. Use the real "
@@ -64,6 +68,7 @@ def _round_prompt(stance: str, state: DebateState) -> str:
 
 
 def bull_agent(state: DebateState) -> DebateState:
+    logger.info("agent=bull ticker received: %s (round %s)", state.get("ticker"), state.get("current_round"))
     draft: ArgumentContent = get_llm().with_structured_output(ArgumentContent).invoke(
         [SystemMessage(content=_BULL_SYSTEM), HumanMessage(content=_round_prompt("bull", state))]
     )
@@ -72,6 +77,7 @@ def bull_agent(state: DebateState) -> DebateState:
 
 
 def bear_agent(state: DebateState) -> DebateState:
+    logger.info("agent=bear ticker received: %s (round %s)", state.get("ticker"), state.get("current_round"))
     draft: ArgumentContent = get_llm().with_structured_output(ArgumentContent).invoke(
         [SystemMessage(content=_BEAR_SYSTEM), HumanMessage(content=_round_prompt("bear", state))]
     )
@@ -110,6 +116,7 @@ def bear_closing(state: DebateState) -> DebateState:
 
 
 def judge_agent(state: DebateState) -> DebateState:
+    logger.info("agent=judge ticker received: %s", state.get("ticker"))
     bull = state["bull_thesis"]
     bear = state["bear_thesis"]
     decision: JudgeDecision = get_llm(temperature=0.0).with_structured_output(JudgeDecision).invoke(

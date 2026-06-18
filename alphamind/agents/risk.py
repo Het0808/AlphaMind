@@ -13,6 +13,10 @@ from ..llm import get_llm
 from ..schemas import RiskReport
 from ..state import AgentState
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 SYSTEM = (
     "You are the Chief Risk Officer at AlphaMind. Using the research, financial "
     "and news reports, evaluate the investment's risk across three axes — market "
@@ -25,6 +29,7 @@ SYSTEM = (
 
 def risk_agent(state: AgentState) -> AgentState:
     ticker = state["ticker"].upper()
+    logger.info("agent=risk ticker received: %s", ticker)
 
     def dump(report) -> str:
         return report.model_dump_json(indent=2) if report else "{}"

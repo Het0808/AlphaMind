@@ -38,6 +38,7 @@ from .agents import (
     supervisor_plan,
     supervisor_synthesize,
 )
+from .resolver import resolve_ticker
 from .schemas import AnalysisRequest, InvestmentReport
 from .state import AgentState
 
@@ -81,24 +82,34 @@ def get_compiled_graph():
 
 
 def analyze(request: AnalysisRequest) -> InvestmentReport:
-    """Run the full AlphaMind pipeline and return a validated InvestmentReport.
+    """Run the full AlphaMind pipeline for ANY company and return a report.
 
-    When `request.remember` is set and memory is enabled, prior memory is recalled
-    and injected as analyst notes (so e.g. an earlier NVIDIA analysis informs a
-    later AMD comparison), and the resulting report is persisted back to memory.
+    The request's `ticker` field may be a ticker symbol OR a company name (US or
+    Indian); it is resolved up front via the Ticker Resolution Layer. The resolved
+    ticker + company name are seeded into the graph state and flow to every agent.
+    Raises `TickerResolutionError` (with suggestions) if the input is unresolvable.
     """
+    # ── Resolve company name / symbol → canonical ticker (with logging) ──
+    resolution = resolve_ticker(request.ticker)
+    ticker = resolution.ticker
+    company_name = resolution.company_name
+    logger.info("User Input: %s", request.ticker)
+    logger.info("Resolved Company: %s", company_name)
+    logger.info("Resolved Ticker: %s", ticker)
+
     mem = _open_memory(request)
 
     notes = request.notes
     if mem is not None:
-        recalled = _recall_notes(mem, request)
+        recalled = _recall_notes(mem, ticker, request)
         if recalled:
             notes = f"{notes}\n\n{recalled}" if notes else recalled
 
     graph = get_compiled_graph()
     final_state: AgentState = graph.invoke(
         {
-            "ticker": request.ticker.upper(),
+            "ticker": ticker,
+            "company_name": company_name,
             "horizon": request.horizon,
             "notes": notes,
             "trace": [],
@@ -107,8 +118,8 @@ def analyze(request: AnalysisRequest) -> InvestmentReport:
 
     synthesis = final_state["synthesis"]
     report = InvestmentReport(
-        ticker=request.ticker.upper(),
-        company_name=final_state.get("company_name", request.ticker.upper()),
+        ticker=ticker,
+        company_name=final_state.get("company_name") or company_name,
         horizon=request.horizon,
         recommendation=synthesis.recommendation,
         conviction=synthesis.conviction,
@@ -123,7 +134,7 @@ def analyze(request: AnalysisRequest) -> InvestmentReport:
     )
 
     if mem is not None:
-        _persist(mem, request, report)
+        _persist(mem, ticker, request, report)
     return report
 
 
@@ -140,12 +151,12 @@ def _open_memory(request: AnalysisRequest):
         return None
 
 
-def _recall_notes(mem, request: AnalysisRequest) -> str:
+def _recall_notes(mem, ticker: str, request: AnalysisRequest) -> str:
     try:
         ctx = mem.recall(
-            f"Analyze {request.ticker}. {request.notes or ''}",
+            f"Analyze {ticker}. {request.notes or ''}",
             user_id=request.user_id,
-            ticker=request.ticker,
+            ticker=ticker,
         )
         return f"PRIOR MEMORY (use for continuity / comparisons):\n{ctx.format()}" if ctx.has_content() else ""
     except Exception as exc:  # noqa: BLE001
@@ -153,7 +164,7 @@ def _recall_notes(mem, request: AnalysisRequest) -> str:
         return ""
 
 
-def _persist(mem, request: AnalysisRequest, report: InvestmentReport) -> None:
+def _persist(mem, ticker: str, request: AnalysisRequest, report: InvestmentReport) -> None:
     try:
         mem.add_research_record(
             ticker=report.ticker,

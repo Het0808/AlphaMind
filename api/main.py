@@ -22,6 +22,7 @@ from alphamind.config import get_settings
 from alphamind.observability.logging import configure_logging
 from alphamind.observability.metrics import render_metrics
 from alphamind.portfolio.schemas import PortfolioInput
+from alphamind.resolver import TickerResolutionError, resolve_ticker
 from alphamind.schemas import AnalysisRequest, InvestmentReport
 from .middleware import RateLimitMiddleware, RequestContextMiddleware
 from .security import require_api_key
@@ -100,6 +101,23 @@ def _require_openai() -> None:
         raise HTTPException(status_code=503, detail="OPENAI_API_KEY is not configured.")
 
 
+class ResolveRequest(BaseModel):
+    query: str
+
+
+@router.post("/resolve", tags=["research"])
+def resolve_endpoint(req: ResolveRequest) -> dict:
+    """Resolve a company name or symbol (US/India) to a canonical ticker."""
+    try:
+        return resolve_ticker(req.query).model_dump()
+    except TickerResolutionError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={"message": str(exc), "query": exc.query,
+                    "suggestions": [s.model_dump() for s in exc.suggestions]},
+        ) from exc
+
+
 @router.post("/analyze", response_model=InvestmentReport, tags=["research"])
 def analyze_endpoint(request: AnalysisRequest) -> InvestmentReport:
     _require_openai()
@@ -108,6 +126,12 @@ def analyze_endpoint(request: AnalysisRequest) -> InvestmentReport:
 
         logger.info("Analyzing %s", request.ticker)
         return analyze(request)
+    except TickerResolutionError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={"message": str(exc), "query": exc.query,
+                    "suggestions": [s.model_dump() for s in exc.suggestions]},
+        ) from exc
     except Exception as exc:  # noqa: BLE001
         logger.exception("Analysis failed for %s", request.ticker)
         raise HTTPException(status_code=500, detail=f"Analysis failed: {exc}") from exc

@@ -12,6 +12,7 @@ import { DebatePanel } from "@/components/agents/DebatePanel";
 import { CitationList } from "@/components/citations/CitationList";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
+import { DEFAULT_TICKER } from "@/lib/constants";
 import { mockCitations } from "@/lib/mock";
 import { fmtCurrency, fmtNumber } from "@/lib/utils";
 import type { DebateResult, FinancialSnapshot, InvestmentReport } from "@/lib/types";
@@ -29,7 +30,7 @@ export default function CompanyAnalysis() {
     setLoading(false);
   }, []);
 
-  React.useEffect(() => { run("NVDA"); }, [run]);
+  React.useEffect(() => { run(DEFAULT_TICKER); }, [run]);
 
   if (loading || !report || !snap || !debate) {
     return (

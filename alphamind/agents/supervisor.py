@@ -16,6 +16,10 @@ from ..schemas import ResearchPlan, Synthesis
 from ..state import AgentState
 from ..tools import get_company_profile
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 PLANNER_SYSTEM = (
     "You are the Supervisor of AlphaMind, an institutional investment research desk. "
     "Given a company, produce a focused research plan that the specialist team "
@@ -35,6 +39,7 @@ SYNTH_SYSTEM = (
 def supervisor_plan(state: AgentState) -> AgentState:
     """Entry node: resolve the company and draft the research plan."""
     ticker = state["ticker"].upper()
+    logger.info("agent=supervisor ticker received: %s", ticker)
     profile = get_company_profile(ticker)
     company_name = profile.get("company_name", ticker)
 

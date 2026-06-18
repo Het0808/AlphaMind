@@ -53,6 +53,19 @@ def test_versioned_prefix(client):
     assert "x-request-id" in {k.lower() for k in r.headers}
 
 
+def test_resolve_endpoint(client):
+    ok = client.post("/v1/resolve", json={"query": "Apple"})
+    assert ok.status_code == 200 and ok.json()["ticker"] == "AAPL"
+
+    india = client.post("/v1/resolve", json={"query": "Reliance"})
+    assert india.json()["ticker"] == "RELIANCE.NS"
+
+    bad = client.post("/v1/resolve", json={"query": "Aple Inc"})
+    assert bad.status_code == 400
+    suggestions = bad.json()["detail"]["suggestions"]
+    assert any(s["ticker"] == "AAPL" for s in suggestions)
+
+
 def test_auth_enforced_when_enabled(monkeypatch):
     monkeypatch.setenv("AUTH_ENABLED", "true")
     monkeypatch.setenv("API_KEYS", "secret-key")

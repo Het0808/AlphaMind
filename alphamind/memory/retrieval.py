@@ -1,9 +1,9 @@
 """Hybrid memory retrieval strategy.
 
 A single similarity search is brittle for an investment assistant — the most
-relevant memory ("the NVIDIA analysis I just ran") may not be the most
-semantically similar to a terse follow-up ("compare with AMD"). So recall blends
-three signals:
+relevant memory (the analysis just run for company X) may not be the most
+semantically similar to a terse follow-up ("compare with its peer"). So recall
+blends three signals:
 
   1. EXACT      — the user's profile, and company memory for any explicit ticker.
   2. SEMANTIC   — vector similarity between the query and past memories.
@@ -32,8 +32,17 @@ def recall(
     user_id: Optional[str] = None,
     ticker: Optional[str] = None,
     k: Optional[int] = None,
+    company_scoped: bool = False,
 ) -> MemoryContext:
+    """Hybrid recall.
+
+    When `company_scoped=True` (and a `ticker` is given), semantic and recency
+    recall are restricted to that ticker — preventing memory contamination between
+    companies. The default (`False`) keeps cross-company recall so follow-ups like
+    "compare with AMD" can surface a prior NVDA analysis.
+    """
     k = k or get_settings().memory_recall_k
+    scope_ticker = ticker if (company_scoped and ticker) else None
 
     # 1. EXACT recall.
     profile = service.get_user_profile(user_id)
@@ -43,11 +52,11 @@ def recall(
         if company:
             companies.append(company)
 
-    # 2. SEMANTIC recall (scoped to the user when known).
-    semantic_hits = service.vector.search(query, k=k, user_id=user_id, min_score=0.0)
+    # 2. SEMANTIC recall (scoped to the user, and to the ticker when company-scoped).
+    semantic_hits = service.vector.search(query, k=k, user_id=user_id, ticker=scope_ticker, min_score=0.0)
 
     # 3. RECENCY recall.
-    recent = service.get_research_history(user_id=user_id, limit=k)
+    recent = service.get_research_history(user_id=user_id, ticker=scope_ticker, limit=k)
 
     # De-dup: drop semantic research hits already represented in recent research,
     # and drop recency items that exactly match the queried ticker context.

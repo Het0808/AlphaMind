@@ -14,6 +14,10 @@ from ..schemas import NewsReport
 from ..state import AgentState
 from ..tools import get_recent_news
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 SYSTEM = (
     "You are a market-intelligence analyst at AlphaMind. Given recent headlines, "
     "assess the prevailing news sentiment, surface the catalysts (earnings, "
@@ -25,6 +29,7 @@ SYSTEM = (
 
 def news_agent(state: AgentState) -> AgentState:
     ticker = state["ticker"].upper()
+    logger.info("agent=news ticker received: %s", ticker)
     headlines = get_recent_news(ticker)
 
     llm = get_llm(temperature=0.0).with_structured_output(NewsReport)

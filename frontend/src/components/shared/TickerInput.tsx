@@ -4,9 +4,10 @@ import * as React from "react";
 import { Search, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { DEFAULT_TICKER } from "@/lib/constants";
 
 export function TickerInput({
-  defaultValue = "NVDA", loading, onSubmit,
+  defaultValue = DEFAULT_TICKER, loading, onSubmit,
 }: { defaultValue?: string; loading?: boolean; onSubmit: (ticker: string) => void }) {
   const [value, setValue] = React.useState(defaultValue);
   return (
@@ -14,7 +15,7 @@ export function TickerInput({
       className="flex items-center gap-2"
       onSubmit={(e) => {
         e.preventDefault();
-        if (value.trim()) onSubmit(value.trim().toUpperCase());
+        if (value.trim()) onSubmit(value.trim());   // backend resolves names or symbols
       }}
     >
       <div className="relative">
@@ -22,8 +23,8 @@ export function TickerInput({
         <Input
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder="Ticker…"
-          className="mono w-40 pl-8 uppercase"
+          placeholder="Ticker or company…"
+          className="mono w-48 pl-8"
         />
       </div>
       <Button type="submit" size="sm" disabled={loading}>
