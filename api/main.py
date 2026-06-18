@@ -290,6 +290,23 @@ def mcp_agent(req: MCPAgentRequest) -> dict:
         raise HTTPException(status_code=500, detail=f"MCP agent failed: {exc}") from exc
 
 
+# ── Financial snapshot (live multi-source data; no LLM key needed) ──
+@router.get("/snapshot/{query}", tags=["financials"])
+def snapshot_endpoint(query: str) -> dict:
+    """Live financial snapshot (Yahoo + SEC EDGAR + FMP). Accepts a name or symbol."""
+    try:
+        ticker = resolve_ticker(query).ticker
+        from alphamind.data import get_financial_service
+
+        return get_financial_service().get_snapshot(ticker).model_dump()
+    except TickerResolutionError as exc:
+        raise HTTPException(status_code=400, detail={"message": str(exc), "query": exc.query,
+                            "suggestions": [s.model_dump() for s in exc.suggestions]}) from exc
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Snapshot failed for %s: %s", query, exc)
+        raise HTTPException(status_code=404, detail=f"No financial data for '{query}': {exc}") from exc
+
+
 # ── Portfolio Advisor ──
 @router.post("/portfolio/advise", tags=["portfolio"])
 def portfolio_advise(req: PortfolioInput, use_llm: bool = True) -> dict:

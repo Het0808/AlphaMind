@@ -60,7 +60,7 @@ export const api = {
     post<DebateResult>("/v1/debate", { ticker, rounds }, () => mockDebateFor(ticker)),
 
   snapshot: (ticker: string) =>
-    get<FinancialSnapshot>(`/snapshot/${ticker}`, () => mockSnapshotFor(ticker)),
+    get<FinancialSnapshot>(`/v1/snapshot/${encodeURIComponent(ticker)}`, () => mockSnapshotFor(ticker)),
 
   filingsSearch: (ticker: string, query: string) =>
     post<{ results: Citation[] }>("/v1/filings/search", { ticker, query }, () => ({ results: mockCitationsFor(ticker) })),
