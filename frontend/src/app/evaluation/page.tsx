@@ -8,12 +8,16 @@ import { SectionHeading } from "@/components/shared/SectionHeading";
 import { StatCard } from "@/components/shared/StatCard";
 import { ScoreBars } from "@/components/charts/Charts";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TickerInput } from "@/components/shared/TickerInput";
 import { api } from "@/lib/api";
+import { useCompanyStore } from "@/lib/store";
 import { fmtPct } from "@/lib/utils";
 import type { EvalReport } from "@/lib/types";
 
 export default function EvaluationDashboard() {
   const [report, setReport] = React.useState<EvalReport | null>(null);
+  const company = useCompanyStore((s) => s.selectedCompany);
+  const selectedTicker = useCompanyStore((s) => s.selectedTicker);
 
   React.useEffect(() => { api.evalReport().then(({ data }) => setReport(data)); }, []);
 
@@ -35,8 +39,13 @@ export default function EvaluationDashboard() {
     <div className="mx-auto max-w-7xl space-y-5">
       <SectionHeading
         title="Evaluation Dashboard"
-        subtitle={`Run ${report.run_id} · ${report.n_samples} samples`}
-        right={<Badge variant={report.overall_quality >= 0.8 ? "bull" : "warn"}>Quality {fmtPct(report.overall_quality, 0)}</Badge>}
+        subtitle={`Run ${report.run_id} · ${report.n_samples} samples${company ? ` · context: ${company} (${selectedTicker})` : ""}`}
+        right={
+          <div className="flex items-center gap-2">
+            <TickerInput />
+            <Badge variant={report.overall_quality >= 0.8 ? "bull" : "warn"}>Quality {fmtPct(report.overall_quality, 0)}</Badge>
+          </div>
+        }
       />
 
       <div className="grid gap-4 sm:grid-cols-4">

@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,41 +13,32 @@ import { RiskGauge } from "@/components/shared/RiskGauge";
 import { AgentTrace } from "@/components/agents/AgentTrace";
 import { AgentStatusBar } from "@/components/shared/AgentStatus";
 import { CitationList } from "@/components/citations/CitationList";
-import { api } from "@/lib/api";
-import { DEFAULT_TICKER } from "@/lib/constants";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { useCompanyStore } from "@/lib/store";
 import { mockCitationsFor } from "@/lib/mock";
-import type { InvestmentReport } from "@/lib/types";
 
 export default function ResearchWorkspace() {
-  const [report, setReport] = React.useState<InvestmentReport | null>(null);
-  const [loading, setLoading] = React.useState(true);
-
-  const run = React.useCallback(async (ticker: string) => {
-    console.info("%c[alphamind:ui]", "color:#f5a623", "run analysis →", ticker);
-    setLoading(true);
-    const { data, mocked } = await api.analyze(ticker);
-    console.info("%c[alphamind:ui]", "color:#f5a623", "rendered", data.ticker, data.company_name, `(mocked=${mocked})`);
-    setReport(data);
-    setLoading(false);
-  }, []);
-
-  React.useEffect(() => { run(DEFAULT_TICKER); }, [run]);
+  const report = useCompanyStore((s) => s.analysisData);
+  const loading = useCompanyStore((s) => s.loading);
+  const selectedTicker = useCompanyStore((s) => s.selectedTicker);
 
   return (
     <div className="mx-auto max-w-7xl space-y-5">
       <SectionHeading
         title="Research Workspace"
         subtitle="Run the full multi-agent pipeline and review the synthesized thesis"
-        right={<TickerInput loading={loading} onSubmit={run} />}
+        right={<TickerInput />}
       />
 
       <AgentStatusBar
         agents={["Supervisor", "Research", "Financial", "News", "Risk", "Synthesis"]}
-        state={loading ? "running" : "done"}
+        state={loading ? "running" : report ? "done" : "idle"}
       />
 
-      {loading || !report ? (
+      {loading || (!report && selectedTicker) ? (
         <LoadingState />
+      ) : !report ? (
+        <EmptyState />
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
@@ -81,14 +71,12 @@ export default function ResearchWorkspace() {
               </CardContent>
             </Card>
 
-            <div className="space-y-4">
-              <Card>
-                <CardContent className="space-y-4 pt-4">
-                  <ConfidenceMeter value={report.conviction} label="Conviction" />
-                  <RiskGauge score={report.risk.risk_score} level={report.risk.overall_risk} />
-                </CardContent>
-              </Card>
-            </div>
+            <Card>
+              <CardContent className="space-y-4 pt-4">
+                <ConfidenceMeter value={report.conviction} label="Conviction" />
+                <RiskGauge score={report.risk.risk_score} level={report.risk.overall_risk} />
+              </CardContent>
+            </Card>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-4">

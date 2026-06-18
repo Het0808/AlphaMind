@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SectionHeading } from "@/components/shared/SectionHeading";
@@ -10,49 +9,46 @@ import { RecommendationBadge } from "@/components/shared/RecommendationBadge";
 import { RiskGauge } from "@/components/shared/RiskGauge";
 import { DebatePanel } from "@/components/agents/DebatePanel";
 import { CitationList } from "@/components/citations/CitationList";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
-import { api } from "@/lib/api";
-import { DEFAULT_TICKER } from "@/lib/constants";
+import { useCompanyStore } from "@/lib/store";
 import { mockCitationsFor } from "@/lib/mock";
 import { fmtCurrency, fmtNumber } from "@/lib/utils";
-import type { DebateResult, FinancialSnapshot, InvestmentReport } from "@/lib/types";
 
 export default function CompanyAnalysis() {
-  const [report, setReport] = React.useState<InvestmentReport | null>(null);
-  const [snap, setSnap] = React.useState<FinancialSnapshot | null>(null);
-  const [debate, setDebate] = React.useState<DebateResult | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  const report = useCompanyStore((s) => s.analysisData);
+  const snap = useCompanyStore((s) => s.financialData);
+  const debate = useCompanyStore((s) => s.debateData);
+  const loading = useCompanyStore((s) => s.loading);
+  const selectedTicker = useCompanyStore((s) => s.selectedTicker);
 
-  const run = React.useCallback(async (ticker: string) => {
-    setLoading(true);
-    const [r, s, d] = await Promise.all([api.analyze(ticker), api.snapshot(ticker), api.debate(ticker)]);
-    setReport(r.data); setSnap(s.data); setDebate(d.data);
-    setLoading(false);
-  }, []);
+  const header = (
+    <SectionHeading
+      title="Company Analysis"
+      subtitle="Deep-dive: fundamentals, thesis, debate and citations"
+      right={<TickerInput />}
+    />
+  );
 
-  React.useEffect(() => { run(DEFAULT_TICKER); }, [run]);
-
-  if (loading || !report || !snap || !debate) {
+  if (loading || (selectedTicker && (!report || !snap || !debate))) {
     return (
       <div className="mx-auto max-w-7xl space-y-4">
-        <SectionHeading title="Company Analysis" subtitle="Deep-dive: fundamentals, thesis, debate and citations" />
+        {header}
         <Skeleton className="h-40 w-full" />
         <Skeleton className="h-72 w-full" />
       </div>
     );
+  }
+  if (!report || !snap || !debate) {
+    return <div className="mx-auto max-w-7xl space-y-4">{header}<EmptyState /></div>;
   }
 
   const m = snap.metrics;
 
   return (
     <div className="mx-auto max-w-7xl space-y-5">
-      <SectionHeading
-        title="Company Analysis"
-        subtitle="Deep-dive: fundamentals, thesis, debate and citations"
-        right={<TickerInput loading={loading} onSubmit={run} />}
-      />
+      {header}
 
-      {/* Identity header */}
       <Card>
         <CardContent className="flex flex-wrap items-center justify-between gap-4 pt-4">
           <div>
@@ -69,7 +65,6 @@ export default function CompanyAnalysis() {
         </CardContent>
       </Card>
 
-      {/* Key metrics */}
       <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
         <StatCard label="Market cap" value={fmtCurrency(m.market_cap)} />
         <StatCard label="Revenue" value={fmtCurrency(m.revenue)} tone="up" />
@@ -79,7 +74,6 @@ export default function CompanyAnalysis() {
         <StatCard label="Free cash flow" value={fmtCurrency(m.free_cash_flow)} tone="up" />
       </div>
 
-      {/* Business + financial narrative */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader><CardTitle>Business & moat</CardTitle></CardHeader>
@@ -96,20 +90,16 @@ export default function CompanyAnalysis() {
           <CardContent className="space-y-2 text-sm text-foreground/85">
             <p><span className="label">Valuation</span><br />{report.financials.valuation_summary}</p>
             <p><span className="label">Profitability</span><br />{report.financials.profitability}</p>
-            <p className="text-xs text-muted-foreground">
-              Sources: {snap.providers_used.join(", ")}
-            </p>
+            <p className="text-xs text-muted-foreground">Sources: {snap.providers_used.join(", ")}</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Debate */}
       <div>
         <h3 className="mb-2 text-sm font-semibold">Bull / Bear / Judge debate</h3>
         <DebatePanel debate={debate} />
       </div>
 
-      {/* Citations */}
       <Card>
         <CardHeader><CardTitle>Primary-source citations</CardTitle></CardHeader>
         <CardContent><CitationList citations={mockCitationsFor(snap.ticker)} /></CardContent>

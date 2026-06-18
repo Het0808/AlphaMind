@@ -4,20 +4,30 @@ import * as React from "react";
 import { Search, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { DEFAULT_TICKER } from "@/lib/constants";
+import { useCompanyStore } from "@/lib/store";
 
-export function TickerInput({
-  defaultValue = DEFAULT_TICKER, loading, onSubmit,
-}: { defaultValue?: string; loading?: boolean; onSubmit: (ticker: string) => void }) {
-  const [value, setValue] = React.useState(defaultValue);
+/**
+ * Global company search. Reads the selected ticker from the store (so the box on
+ * EVERY page shows the current company) and writes the new selection on submit.
+ */
+export function TickerInput() {
+  const selectedTicker = useCompanyStore((s) => s.selectedTicker);
+  const loading = useCompanyStore((s) => s.loading);
+  const selectCompany = useCompanyStore((s) => s.selectCompany);
+
+  const [value, setValue] = React.useState(selectedTicker);
+  // Reflect global selection whenever it changes (e.g. set on another page).
+  React.useEffect(() => { setValue(selectedTicker); }, [selectedTicker]);
+
   return (
     <form
       className="flex items-center gap-2"
       onSubmit={(e) => {
         e.preventDefault();
-        if (value.trim()) {
-          console.info("%c[alphamind:ui]", "color:#f5a623", "ticker submitted:", value.trim());
-          onSubmit(value.trim());   // backend resolves names or symbols
+        const q = value.trim();
+        if (q) {
+          console.info("%c[alphamind:ui]", "color:#f5a623", "ticker submitted:", q);
+          selectCompany(q);
         }
       }}
     >
@@ -27,6 +37,7 @@ export function TickerInput({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder="Ticker or company…"
+          aria-label="Search company"
           className="mono w-48 pl-8"
         />
       </div>

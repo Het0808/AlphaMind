@@ -8,11 +8,28 @@ import { SectionHeading } from "@/components/shared/SectionHeading";
 import { StatCard } from "@/components/shared/StatCard";
 import { RecommendationBadge } from "@/components/shared/RecommendationBadge";
 import { MetricBars } from "@/components/charts/Charts";
+import { TickerInput } from "@/components/shared/TickerInput";
+import { Badge } from "@/components/ui/badge";
 import { mockPortfolio } from "@/lib/mock";
+import { useCompanyStore } from "@/lib/store";
 import { fmtPct } from "@/lib/utils";
+import type { Holding } from "@/lib/types";
 
 export default function PortfolioAdvisor() {
-  const holdings = mockPortfolio;
+  const report = useCompanyStore((s) => s.analysisData);
+  const selectedTicker = useCompanyStore((s) => s.selectedTicker);
+
+  // The globally selected company is woven into the portfolio (highlighted).
+  const selected: Holding | null = report
+    ? { ticker: report.ticker, name: report.company_name, weight: 0.2,
+        recommendation: report.recommendation, conviction: report.conviction,
+        riskScore: report.risk.risk_score, sector: report.research.sector }
+    : null;
+  const rest = mockPortfolio.filter((h) => h.ticker !== selected?.ticker);
+  const merged = selected ? [selected, ...rest] : rest;
+  const total = merged.reduce((a, h) => a + h.weight, 0) || 1;
+  const holdings = merged.map((h) => ({ ...h, weight: h.weight / total }));
+
   const wAvgConviction = holdings.reduce((a, h) => a + h.conviction * h.weight, 0);
   const wAvgRisk = holdings.reduce((a, h) => a + h.riskScore * h.weight, 0);
   const buys = holdings.filter((h) => h.recommendation.includes("BUY")).length;
@@ -26,7 +43,11 @@ export default function PortfolioAdvisor() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-5">
-      <SectionHeading title="Portfolio Advisor" subtitle="Aggregated agent views across your holdings" />
+      <SectionHeading
+        title="Portfolio Advisor"
+        subtitle={report ? `In context: ${report.company_name} (${selectedTicker})` : "Aggregated agent views across your holdings"}
+        right={<TickerInput />}
+      />
 
       <div className="grid gap-4 sm:grid-cols-4">
         <StatCard label="Holdings" value={holdings.length} />
@@ -52,8 +73,12 @@ export default function PortfolioAdvisor() {
               </TableHeader>
               <TableBody>
                 {holdings.map((h) => (
-                  <TableRow key={h.ticker}>
-                    <TableCell className="mono font-semibold">{h.ticker}<div className="text-[10px] font-normal text-muted-foreground">{h.name}</div></TableCell>
+                  <TableRow key={h.ticker} className={h.ticker === selectedTicker ? "bg-primary/5" : ""}>
+                    <TableCell className="mono font-semibold">
+                      {h.ticker}
+                      {h.ticker === selectedTicker && <Badge variant="info" className="ml-2">selected</Badge>}
+                      <div className="text-[10px] font-normal text-muted-foreground">{h.name}</div>
+                    </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{h.sector}</TableCell>
                     <TableCell className="mono">{fmtPct(h.weight, 0)}</TableCell>
                     <TableCell><RecommendationBadge value={h.recommendation} /></TableCell>
