@@ -16,7 +16,7 @@ import { AgentStatusBar } from "@/components/shared/AgentStatus";
 import { CitationList } from "@/components/citations/CitationList";
 import { api } from "@/lib/api";
 import { DEFAULT_TICKER } from "@/lib/constants";
-import { mockCitations } from "@/lib/mock";
+import { mockCitationsFor } from "@/lib/mock";
 import type { InvestmentReport } from "@/lib/types";
 
 export default function ResearchWorkspace() {
@@ -24,8 +24,10 @@ export default function ResearchWorkspace() {
   const [loading, setLoading] = React.useState(true);
 
   const run = React.useCallback(async (ticker: string) => {
+    console.info("%c[alphamind:ui]", "color:#f5a623", "run analysis →", ticker);
     setLoading(true);
-    const { data } = await api.analyze(ticker);
+    const { data, mocked } = await api.analyze(ticker);
+    console.info("%c[alphamind:ui]", "color:#f5a623", "rendered", data.ticker, data.company_name, `(mocked=${mocked})`);
     setReport(data);
     setLoading(false);
   }, []);
@@ -120,7 +122,7 @@ export default function ResearchWorkspace() {
 
             <TabsContent value="citations">
               <Card><CardHeader><CardTitle>SEC filing citations</CardTitle></CardHeader>
-                <CardContent><CitationList citations={mockCitations} /></CardContent></Card>
+                <CardContent><CitationList citations={mockCitationsFor(report.ticker)} /></CardContent></Card>
             </TabsContent>
 
             <TabsContent value="news">

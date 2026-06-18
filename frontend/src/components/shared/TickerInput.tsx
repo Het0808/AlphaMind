@@ -15,7 +15,10 @@ export function TickerInput({
       className="flex items-center gap-2"
       onSubmit={(e) => {
         e.preventDefault();
-        if (value.trim()) onSubmit(value.trim());   // backend resolves names or symbols
+        if (value.trim()) {
+          console.info("%c[alphamind:ui]", "color:#f5a623", "ticker submitted:", value.trim());
+          onSubmit(value.trim());   // backend resolves names or symbols
+        }
       }}
     >
       <div className="relative">

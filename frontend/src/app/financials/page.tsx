@@ -10,7 +10,7 @@ import { PriceArea, MetricBars, RiskRadar } from "@/components/charts/Charts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 import { DEFAULT_TICKER } from "@/lib/constants";
-import { mockPriceSeries } from "@/lib/mock";
+import { mockPriceSeriesFor } from "@/lib/mock";
 import { fmtCurrency, fmtNumber } from "@/lib/utils";
 import type { FinancialSnapshot, InvestmentReport } from "@/lib/types";
 
@@ -38,6 +38,11 @@ export default function FinancialDashboard() {
   }
 
   const m = snap.metrics;
+  const priceSeries = mockPriceSeriesFor(snap.ticker);
+  const lastPx = priceSeries[priceSeries.length - 1].price;
+  const firstPx = priceSeries[0].price;
+  const pxChange = ((lastPx - firstPx) / firstPx) * 100;
+  const cur = m.currency === "INR" ? "₹" : "$";
   const incomeBars = [
     { name: "Revenue", value: (m.revenue ?? 0) / 1e9 },
     { name: "Net inc.", value: (m.net_income ?? 0) / 1e9 },
@@ -61,7 +66,7 @@ export default function FinancialDashboard() {
       />
 
       <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        <StatCard label="Price (mock)" value="$182.34" tone="up" sub="+2.1% today" />
+        <StatCard label="Price (indicative)" value={`${cur}${lastPx.toFixed(2)}`} tone={pxChange >= 0 ? "up" : "down"} sub={`${pxChange >= 0 ? "+" : ""}${pxChange.toFixed(1)}% (60d)`} />
         <StatCard label="Market cap" value={fmtCurrency(m.market_cap)} />
         <StatCard label="P/E" value={fmtNumber(m.pe_ratio)} tone="warn" />
         <StatCard label="EPS" value={fmtNumber(m.eps)} />
@@ -75,7 +80,7 @@ export default function FinancialDashboard() {
             <CardTitle>Price trend (60d)</CardTitle>
             <Badge variant="info">indicative</Badge>
           </CardHeader>
-          <CardContent><PriceArea data={mockPriceSeries} /></CardContent>
+          <CardContent><PriceArea data={priceSeries} /></CardContent>
         </Card>
         <Card>
           <CardHeader><CardTitle>Risk decomposition</CardTitle></CardHeader>

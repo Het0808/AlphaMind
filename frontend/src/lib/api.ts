@@ -1,9 +1,10 @@
 // Typed client for the AlphaMind FastAPI backend.
-// Every call falls back to mock data when the backend is unset or unreachable,
-// so the UI is fully demonstrable offline.
+// With NEXT_PUBLIC_API_URL set, calls hit the live backend (/v1/*). Otherwise
+// they fall back to ticker-AWARE demo data, so the dashboard still changes per
+// company. Every step is logged to the console for auditability.
 
 import {
-  mockCitations, mockDebate, mockEval, mockReport, mockSnapshot,
+  mockCitationsFor, mockDebateFor, mockEval, mockReportFor, mockSnapshotFor,
 } from "./mock";
 import type {
   Citation, DebateResult, EvalReport, FinancialSnapshot, InvestmentReport,
@@ -13,62 +14,56 @@ const BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
 
 export const usingMock = !BASE;
 
-// Minimal client-side name map so the demo (no-backend) shows the right company
-// identity for the requested ticker rather than always the example fixture's.
-const COMPANY_NAMES: Record<string, string> = {
-  AAPL: "Apple Inc.", MSFT: "Microsoft Corporation", TSLA: "Tesla, Inc.",
-  NVDA: "NVIDIA Corporation", GOOGL: "Alphabet Inc.", AMZN: "Amazon.com, Inc.",
-  META: "Meta Platforms, Inc.", AMD: "Advanced Micro Devices, Inc.",
-  "RELIANCE.NS": "Reliance Industries Limited", "INFY.NS": "Infosys Limited",
-  "TCS.NS": "Tata Consultancy Services Limited",
-};
-const nameFor = (ticker: string) => COMPANY_NAMES[ticker.toUpperCase()] ?? ticker.toUpperCase();
+function log(...args: unknown[]) {
+  if (typeof window !== "undefined") console.info("%c[alphamind:api]", "color:#19d27c", ...args);
+}
 
-async function post<T>(path: string, body: unknown, fallback: T): Promise<{ data: T; mocked: boolean }> {
-  if (!BASE) return { data: fallback, mocked: true };
+async function post<T>(path: string, body: unknown, fallback: () => T): Promise<{ data: T; mocked: boolean }> {
+  log("POST", path, body, "·", BASE ? `live → ${BASE}` : "mock mode");
+  if (!BASE) { const data = fallback(); log("← mock response for", path); return { data, mocked: true }; }
   try {
     const res = await fetch(`${BASE}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      cache: "no-store",
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body), cache: "no-store",
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return { data: (await res.json()) as T, mocked: false };
-  } catch {
-    return { data: fallback, mocked: true };
+    const data = (await res.json()) as T;
+    log("← live response for", path);
+    return { data, mocked: false };
+  } catch (e) {
+    log("live request failed, falling back to mock:", String(e));
+    return { data: fallback(), mocked: true };
   }
 }
 
-async function get<T>(path: string, fallback: T): Promise<{ data: T; mocked: boolean }> {
-  if (!BASE) return { data: fallback, mocked: true };
+async function get<T>(path: string, fallback: () => T): Promise<{ data: T; mocked: boolean }> {
+  log("GET", path, "·", BASE ? `live → ${BASE}` : "mock mode");
+  if (!BASE) { const data = fallback(); log("← mock response for", path); return { data, mocked: true }; }
   try {
     const res = await fetch(`${BASE}${path}`, { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return { data: (await res.json()) as T, mocked: false };
-  } catch {
-    return { data: fallback, mocked: true };
+    const data = (await res.json()) as T;
+    log("← live response for", path);
+    return { data, mocked: false };
+  } catch (e) {
+    log("live request failed, falling back to mock:", String(e));
+    return { data: fallback(), mocked: true };
   }
 }
 
 export const api = {
   analyze: (ticker: string, opts?: { horizon?: string }) =>
     post<InvestmentReport>("/v1/analyze", { ticker, horizon: opts?.horizon ?? "12 months" },
-      { ...mockReport, ticker: ticker.toUpperCase(), company_name: nameFor(ticker) }),
+      () => mockReportFor(ticker)),
 
   debate: (ticker: string, rounds = 2) =>
-    post<DebateResult>("/v1/debate", { ticker, rounds },
-      { ...mockDebate, ticker: ticker.toUpperCase(), company_name: nameFor(ticker) }),
+    post<DebateResult>("/v1/debate", { ticker, rounds }, () => mockDebateFor(ticker)),
 
-  // The backend exposes financials through /v1/analyze; the UI also keeps a direct
-  // snapshot path for the Financial Dashboard, mocked until a /snapshot route exists.
   snapshot: (ticker: string) =>
-    get<FinancialSnapshot>(`/snapshot/${ticker}`,
-      { ...mockSnapshot, ticker: ticker.toUpperCase(),
-        overview: { ...mockSnapshot.overview, ticker: ticker.toUpperCase(), name: nameFor(ticker) } }),
+    get<FinancialSnapshot>(`/snapshot/${ticker}`, () => mockSnapshotFor(ticker)),
 
   filingsSearch: (ticker: string, query: string) =>
-    post<{ results: Citation[] }>("/v1/filings/search", { ticker, query }, { results: mockCitations }),
+    post<{ results: Citation[] }>("/v1/filings/search", { ticker, query }, () => ({ results: mockCitationsFor(ticker) })),
 
-  evalReport: () => get<EvalReport>("/eval/report", mockEval),
+  evalReport: () => get<EvalReport>("/eval/report", () => mockEval),
 };

@@ -13,7 +13,7 @@ import { CitationList } from "@/components/citations/CitationList";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 import { DEFAULT_TICKER } from "@/lib/constants";
-import { mockCitations } from "@/lib/mock";
+import { mockCitationsFor } from "@/lib/mock";
 import { fmtCurrency, fmtNumber } from "@/lib/utils";
 import type { DebateResult, FinancialSnapshot, InvestmentReport } from "@/lib/types";
 
@@ -112,7 +112,7 @@ export default function CompanyAnalysis() {
       {/* Citations */}
       <Card>
         <CardHeader><CardTitle>Primary-source citations</CardTitle></CardHeader>
-        <CardContent><CitationList citations={mockCitations} /></CardContent>
+        <CardContent><CitationList citations={mockCitationsFor(snap.ticker)} /></CardContent>
       </Card>
     </div>
   );
