@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Bloomberg Terminal × OpenAI: dark, dense, data-forward ── */
+:root {
+  --background: 222 47% 4%;
+  --foreground: 210 20% 92%;
+  --card: 220 28% 7%;
+  --card-foreground: 210 20% 92%;
+  --muted: 220 20% 12%;
+  --muted-foreground: 215 14% 58%;
+  --border: 220 20% 15%;
+  --input: 220 20% 15%;
+  --ring: 152 60% 42%;
+
+  --primary: 152 64% 44%;            /* terminal green */
+  --primary-foreground: 222 47% 5%;
+  --secondary: 220 20% 14%;
+  --secondary-foreground: 210 20% 92%;
+  --accent: 38 92% 55%;              /* amber */
+  --accent-foreground: 222 47% 5%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+
+  --bull: 152 64% 46%;
+  --bear: 0 78% 60%;
+  --warn: 38 92% 55%;
+  --info: 199 89% 56%;
+
+  --radius: 0.625rem;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+* { border-color: hsl(var(--border)); }
+
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .label {
+    @apply text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground;
+  }
+  .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .panel { @apply rounded-lg border border-border bg-card; }
+  .panel-pad { @apply p-4; }
+  .ticker-up { color: hsl(var(--bull)); }
+  .ticker-down { color: hsl(var(--bear)); }
+}
+
+@layer utilities {
+  /* faint terminal grid backdrop */
+  .grid-bg {
+    background-image:
+      linear-gradient(hsl(var(--border) / 0.35) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.35) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+  .scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scroll-thin::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 8px; }
+  .scroll-thin::-webkit-scrollbar-track { background: transparent; }
+}
+
+/* Recharts: tone down default axis/grid to match the terminal theme */
+.recharts-cartesian-grid line { stroke: hsl(var(--border) / 0.6); }
+.recharts-text { fill: hsl(var(--muted-foreground)); font-size: 11px; }

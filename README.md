@@ -300,6 +300,21 @@ metrics into `langsmith.evaluate` evaluators; enable tracing via
 `LANGCHAIN_TRACING_V2`. **Ragas** (`ragas_eval.py`) — reference faithfulness/
 retrieval scoring. Both lazy-imported and degrade gracefully.
 
+## 🖥️ Frontend (Next.js terminal)
+
+A professional **Bloomberg Terminal × OpenAI** research UI lives in `frontend/`
+(Next.js 14 · TypeScript · Tailwind · shadcn-style · Recharts). Six pages —
+Research Workspace, Company Analysis, Agent Reasoning Viewer, Financial Dashboard,
+Portfolio Advisor, Evaluation Dashboard — displaying agent thoughts, debate
+history, citations, financial charts, risk scores and confidence metrics.
+
+```bash
+cd frontend && npm install && npm run dev   # http://localhost:3000
+```
+
+Ships with mock data and a graceful API client, so it renders with **no backend**;
+set `NEXT_PUBLIC_API_URL=http://localhost:8000` to go live. See `frontend/README.md`.
+
 ## 📁 Project structure
 
 ```
