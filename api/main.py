@@ -11,6 +11,9 @@ Endpoints:
     POST /memory/recall    — hybrid recall of prior memory for a user/query
     GET  /memory/history   — research history (by user and/or ticker)
     GET  /memory/conversation/{thread_id} — conversation history for a thread
+    GET  /mcp/servers      — configured MCP servers (secrets redacted)
+    POST /mcp/connect      — connect to MCP servers, discover tools
+    POST /mcp/agent        — run the MCP-powered agent (dynamic tool use)
 """
 
 from __future__ import annotations
@@ -206,6 +209,48 @@ def memory_conversation(thread_id: str, limit: int = 50) -> dict:
         return {"messages": [m.model_dump() for m in messages]}
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=f"Memory error: {exc}") from exc
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Model Context Protocol (MCP)
+# ──────────────────────────────────────────────────────────────────────────
+class MCPAgentRequest(BaseModel):
+    query: str
+
+
+@app.get("/mcp/servers")
+def mcp_servers() -> dict:
+    """List configured MCP servers (credentials redacted). No connection needed."""
+    from alphamind.mcp.specs import default_server_specs
+
+    return {"servers": [s.redacted() for s in default_server_specs()]}
+
+
+@app.post("/mcp/connect")
+def mcp_connect() -> dict:
+    """Connect to all enabled MCP servers and dynamically discover their tools."""
+    try:
+        from alphamind.mcp.manager import MCPManager
+
+        manager = MCPManager()
+        manager.connect_sync()
+        return manager.status()
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"MCP connect failed: {exc}") from exc
+
+
+@app.post("/mcp/agent")
+def mcp_agent(req: MCPAgentRequest) -> dict:
+    """Run the MCP-powered agent, which dynamically selects discovered tools."""
+    settings = get_settings()
+    if not settings.is_configured:
+        raise HTTPException(status_code=503, detail="OPENAI_API_KEY is not configured.")
+    try:
+        from alphamind.mcp.agent import run_mcp_agent_sync
+
+        return {"query": req.query, "answer": run_mcp_agent_sync(req.query)}
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"MCP agent failed: {exc}") from exc
 
 
 def run() -> None:

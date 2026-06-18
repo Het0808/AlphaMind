@@ -52,6 +52,17 @@ class Settings(BaseSettings):
     memory_sqlite_path: str = "alphamind_memory.db"  # used when memory_db_url is blank
     memory_recall_k: int = 5
 
+    # ── Model Context Protocol (MCP) ──
+    enable_mcp: bool = False
+    npx_command: str = "npx"  # launcher for the Node-based reference MCP servers
+    mcp_filesystem_root: str = "./workspace"
+    mcp_browser_package: str = "@modelcontextprotocol/server-puppeteer"
+    github_token: str = ""  # GitHub PAT for the GitHub MCP server
+    mcp_enable_filesystem: bool = True
+    mcp_enable_github: bool = True
+    mcp_enable_browser: bool = True
+    mcp_enable_financial: bool = True
+
     # API server
     api_host: str = "0.0.0.0"
     api_port: int = 8000

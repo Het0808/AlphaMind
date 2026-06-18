@@ -227,6 +227,46 @@ per-thread state and a long-term **store**. Memory is **off by default**
 `GET /memory/conversation/{thread_id}` — and `/analyze` accepts
 `user_id` / `thread_id` / `remember`.
 
+## 🔌 Model Context Protocol (MCP)
+
+`alphamind/mcp/` connects the agents to external MCP servers and lets them
+**discover and use tools dynamically** — nothing is hard-coded.
+
+| Server | Package / source | Auth |
+|--------|------------------|------|
+| **Filesystem** | `@modelcontextprotocol/server-filesystem` | none |
+| **GitHub** | `@modelcontextprotocol/server-github` | PAT (`GITHUB_TOKEN`) |
+| **Browser** | `@modelcontextprotocol/server-puppeteer` | none |
+| **Financial Data** | AlphaMind's own server over `FinancialDataService` | none |
+
+**Components**
+- **MCP manager** (`manager.py`) — connects to each enabled server and discovers
+  its tools at runtime; per-server failures are isolated (recorded, not raised)
+  so one broken server never takes down the rest.
+- **Tool registry** (`registry.py`) — a live, namespaced (`github.create_issue`),
+  searchable catalog of every discovered tool, plus a record of failed servers.
+- **Authentication layer** (`auth.py`) — resolves each server's required
+  credentials from env, validates them *before* spawning a process, and redacts
+  secrets from all output.
+- **Error handling** — typed `MCPError` hierarchy (`MCPAuthError`,
+  `MCPConnectionError`, `MCPToolError`, `MCPToolNotFound`).
+
+```python
+from alphamind.mcp.manager import MCPManager
+
+mgr = MCPManager(); mgr.connect_sync()
+print(mgr.status())          # {connected, servers, tool_count, tools, failures}
+
+from alphamind.mcp.agent import run_mcp_agent_sync
+print(run_mcp_agent_sync("Get NVDA's revenue and EPS, then save a summary to notes.txt"))
+```
+
+The MCP agent (`agent.py`) is a LangGraph ReAct agent bound to *whatever* tools the
+servers expose — it inspects the registry and decides which to call. **API:**
+`GET /mcp/servers`, `POST /mcp/connect`, `POST /mcp/agent`. The reference servers
+run via `npx` (Node.js required); the Financial server is pure-Python
+(`python -m alphamind.mcp.servers.financial_server`). Off by default (`ENABLE_MCP`).
+
 ## 📁 Project structure
 
 ```
@@ -281,6 +321,14 @@ ALphA_MinDs/
 │   │   ├── service.py          # MemoryService facade
 │   │   ├── langgraph_memory.py # checkpointer + long-term store factories
 │   │   └── schemas.py          # UserProfile / CompanyMemory / ResearchRecord / …
+│   ├── mcp/                    # ── Model Context Protocol integration ──
+│   │   ├── specs.py            # filesystem / github / browser / financial servers
+│   │   ├── auth.py             # credential resolution + validation
+│   │   ├── manager.py          # MCPManager: connect + dynamic tool discovery
+│   │   ├── registry.py         # ToolRegistry: namespaced, searchable catalog
+│   │   ├── agent.py            # ReAct agent over discovered tools
+│   │   ├── schemas.py          # MCPServerSpec / ToolInfo
+│   │   └── servers/financial_server.py  # local Financial Data MCP server
 │   └── tools/
 │       ├── financials.py       # tool wrappers over FinancialDataService
 │       ├── research_rag.py     # tool wrapper over the RAG retriever
