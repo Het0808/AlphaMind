@@ -184,6 +184,49 @@ print(result.judge.winner, result.judge.recommendation, result.confidence)  # Ju
 (bull thesis, bear thesis, judge decision, confidence, full transcript). The
 debate is grounded in the real multi-source financial briefing by default.
 
+## 🧠 Persistent memory (PostgreSQL + LangGraph + vector)
+
+`alphamind/memory/` gives AlphaMind long-term, cross-session memory so it builds
+on prior work instead of starting cold every time.
+
+| Memory | Stored as | Example |
+|--------|-----------|---------|
+| **User profile** | `am_users` | risk tolerance, sector preferences |
+| **Company** | `am_companies` | what we concluded about a ticker |
+| **Research history** | `am_research_history` | every past analysis, recallable |
+| **Conversation** | `am_messages` (+ LangGraph checkpointer) | message log per thread |
+| **Vector** | `am_memory_vectors` | embeddings for semantic recall |
+
+**The headline capability — it remembers:**
+
+```python
+from alphamind.graph import analyze
+from alphamind.schemas import AnalysisRequest
+
+analyze(AnalysisRequest(ticker="NVDA", user_id="u1", thread_id="t1", remember=True))
+# ...later, even in a new session...
+analyze(AnalysisRequest(ticker="AMD", user_id="u1", thread_id="t1", remember=True))
+# → the AMD run recalls the prior NVIDIA analysis and compares against it
+```
+
+**Hybrid retrieval strategy** (`memory/retrieval.py`) — a single similarity search
+is brittle for terse follow-ups ("compare with AMD"), so recall blends three
+signals and de-duplicates:
+1. **Exact** — user profile + company memory for any explicit ticker.
+2. **Semantic** — vector cosine similarity to the query.
+3. **Recency** — the latest research, so the most recent analysis is always in
+   context even when semantic similarity is weak.
+
+**Storage** — PostgreSQL in production (`MEMORY_DB_URL`), local **SQLite** as a
+zero-config dev fallback; the same SQLAlchemy code targets both. **LangGraph
+memory** (`langgraph_memory.py`) adds a Postgres/in-memory **checkpointer** for
+per-thread state and a long-term **store**. Memory is **off by default**
+(`ENABLE_MEMORY=false`) and every hook degrades gracefully.
+
+**API:** `POST /memory/profile`, `POST /memory/recall`, `GET /memory/history`,
+`GET /memory/conversation/{thread_id}` — and `/analyze` accepts
+`user_id` / `thread_id` / `remember`.
+
 ## 📁 Project structure
 
 ```
@@ -230,6 +273,14 @@ ALphA_MinDs/
 │   │   ├── state.py            # shared-memory transcript state
 │   │   ├── util.py             # round control + transcript rendering
 │   │   └── schemas.py          # DebateArgument / SideThesis / JudgeDecision
+│   ├── memory/                 # ── persistent memory (Postgres + vector) ──
+│   │   ├── models.py           # SQLAlchemy tables (users/companies/research/msgs/vectors)
+│   │   ├── db.py               # engine/DSN resolution (Postgres ↔ SQLite)
+│   │   ├── vector.py           # embedding add/search (cosine)
+│   │   ├── retrieval.py        # hybrid recall strategy (exact+recency+semantic)
+│   │   ├── service.py          # MemoryService facade
+│   │   ├── langgraph_memory.py # checkpointer + long-term store factories
+│   │   └── schemas.py          # UserProfile / CompanyMemory / ResearchRecord / …
 │   └── tools/
 │       ├── financials.py       # tool wrappers over FinancialDataService
 │       ├── research_rag.py     # tool wrapper over the RAG retriever

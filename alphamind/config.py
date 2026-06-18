@@ -46,6 +46,12 @@ class Settings(BaseSettings):
     # ── Multi-agent debate ──
     debate_rounds: int = 2  # number of Bull/Bear exchange rounds before judging
 
+    # ── Persistent memory ──
+    enable_memory: bool = False
+    memory_db_url: str = ""  # SQLAlchemy DSN, e.g. postgresql+psycopg://u:p@host:5432/db
+    memory_sqlite_path: str = "alphamind_memory.db"  # used when memory_db_url is blank
+    memory_recall_k: int = 5
+
     # API server
     api_host: str = "0.0.0.0"
     api_port: int = 8000

@@ -48,6 +48,9 @@ class AnalysisRequest(BaseModel):
     ticker: str = Field(..., description="Stock ticker symbol, e.g. AAPL.")
     horizon: str = Field("12 months", description="Investment time horizon.")
     notes: Optional[str] = Field(None, description="Optional analyst focus or constraints.")
+    user_id: Optional[str] = Field(None, description="User whose memory to recall / update.")
+    thread_id: Optional[str] = Field(None, description="Conversation thread for message history.")
+    remember: bool = Field(False, description="Recall prior memory and persist this analysis.")
 
 
 class ResearchPlan(BaseModel):

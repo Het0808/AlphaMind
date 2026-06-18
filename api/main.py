@@ -7,6 +7,10 @@ Endpoints:
     POST /filings/search   — semantic search over filings, returns cited chunks
     POST /filings/qa       — RAG answer over filings with exact citations
     POST /debate           — multi-round Bull/Bear/Judge debate with confidence
+    POST /memory/profile   — upsert a user profile
+    POST /memory/recall    — hybrid recall of prior memory for a user/query
+    GET  /memory/history   — research history (by user and/or ticker)
+    GET  /memory/conversation/{thread_id} — conversation history for a thread
 """
 
 from __future__ import annotations
@@ -142,6 +146,66 @@ def debate_endpoint(req: DebateRequest) -> dict:
     except Exception as exc:  # noqa: BLE001
         logger.exception("Debate failed for %s", req.ticker)
         raise HTTPException(status_code=500, detail=f"Debate failed: {exc}") from exc
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Persistent memory
+# ──────────────────────────────────────────────────────────────────────────
+class ProfileRequest(BaseModel):
+    user_id: str
+    name: Optional[str] = None
+    risk_tolerance: Optional[str] = None
+    preferences: dict = Field(default_factory=dict)
+
+
+class RecallRequest(BaseModel):
+    query: str
+    user_id: Optional[str] = None
+    ticker: Optional[str] = None
+
+
+def _memory_service():
+    from alphamind.memory.service import get_memory_service
+
+    return get_memory_service()
+
+
+@app.post("/memory/profile")
+def memory_profile(req: ProfileRequest) -> dict:
+    try:
+        profile = _memory_service().upsert_user_profile(
+            req.user_id, name=req.name, risk_tolerance=req.risk_tolerance, preferences=req.preferences
+        )
+        return profile.model_dump()
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"Memory error: {exc}") from exc
+
+
+@app.post("/memory/recall")
+def memory_recall(req: RecallRequest) -> dict:
+    try:
+        ctx = _memory_service().recall(req.query, user_id=req.user_id, ticker=req.ticker)
+        return {"context": ctx.format(), "has_content": ctx.has_content(), **ctx.model_dump()}
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"Memory error: {exc}") from exc
+
+
+@app.get("/memory/history")
+def memory_history(user_id: Optional[str] = None, ticker: Optional[str] = None, limit: int = 10) -> dict:
+    try:
+        records = _memory_service().get_research_history(user_id=user_id, ticker=ticker, limit=limit)
+        return {"records": [r.model_dump() for r in records]}
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"Memory error: {exc}") from exc
+
+
+@app.get("/memory/conversation/{thread_id}")
+def memory_conversation(thread_id: str, limit: int = 50) -> dict:
+    try:
+        messages = _memory_service().get_conversation(thread_id, limit=limit)
+        return {"messages": [m.model_dump() for m in messages]}
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"Memory error: {exc}") from exc
 
 
 def run() -> None:
