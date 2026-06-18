@@ -24,8 +24,8 @@ env/
 
 # Data / logs
 *.log
-data/
-cache/
+/data/
+/cache/
 qdrant_data/
 *.qdrant
 eval_report.json

@@ -17,6 +17,8 @@ import { formatMoney, nativeSymbol } from "@/lib/currency-format";
 import { mockCitationsFor } from "@/lib/mock";
 import { fmtNumber } from "@/lib/utils";
 
+const UNAVAILABLE = <span className="text-muted-foreground">Data unavailable</span>;
+
 export default function CompanyAnalysis() {
   const report = useCompanyStore((s) => s.analysisData);
   const snap = useCompanyStore((s) => s.financialData);
@@ -47,6 +49,8 @@ export default function CompanyAnalysis() {
   }
 
   const m = snap.metrics;
+  // Fail-safe: null/unverified monetary fields show "Data unavailable", never a guess.
+  const money = (v?: number | null) => (v == null ? UNAVAILABLE : formatMoney(v, m.currency, rate));
 
   return (
     <div className="mx-auto max-w-7xl space-y-5">
@@ -69,15 +73,15 @@ export default function CompanyAnalysis() {
       </Card>
 
       <div className="flex items-center justify-between">
-        <span className="label">Monetary values in INR{m.currency !== "INR" ? ` · converted @ ₹${rate.toFixed(2)}/USD` : ""}</span>
+        <span className="label">Monetary values in INR{m.currency !== "INR" ? ` · converted @ ₹${rate.toFixed(2)}/USD` : ""} · live verified data only</span>
       </div>
       <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        <StatCard label="Market cap (INR)" value={formatMoney(m.market_cap, m.currency, rate)} />
-        <StatCard label="Revenue (INR)" value={formatMoney(m.revenue, m.currency, rate)} tone="up" />
-        <StatCard label="Net income (INR)" value={formatMoney(m.net_income, m.currency, rate)} tone="up" />
-        <StatCard label="EPS (not converted)" value={`${nativeSymbol(m.currency)}${fmtNumber(m.eps)}`} />
-        <StatCard label="P/E (ratio)" value={fmtNumber(m.pe_ratio)} tone="warn" />
-        <StatCard label="Free cash flow (INR)" value={formatMoney(m.free_cash_flow, m.currency, rate)} tone="up" />
+        <StatCard label="Market cap (INR)" value={money(m.market_cap)} />
+        <StatCard label="Revenue (INR)" value={money(m.revenue)} tone="up" />
+        <StatCard label="Net income (INR)" value={money(m.net_income)} tone="up" />
+        <StatCard label="EPS (not converted)" value={m.eps == null ? UNAVAILABLE : `${nativeSymbol(m.currency)}${fmtNumber(m.eps)}`} />
+        <StatCard label="P/E (ratio)" value={m.pe_ratio == null ? UNAVAILABLE : fmtNumber(m.pe_ratio)} tone="warn" />
+        <StatCard label="Free cash flow (INR)" value={money(m.free_cash_flow)} tone="up" />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

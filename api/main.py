@@ -307,6 +307,26 @@ def snapshot_endpoint(query: str) -> dict:
         raise HTTPException(status_code=404, detail=f"No financial data for '{query}': {exc}") from exc
 
 
+@router.get("/quality/{query}", tags=["financials"])
+def quality_endpoint(query: str) -> dict:
+    """Data-quality report for a ticker: per-field source, confidence and validation."""
+    try:
+        ticker = resolve_ticker(query).ticker
+        from alphamind.data import get_financial_service
+
+        snap = get_financial_service().get_snapshot(ticker)
+        return {
+            "ticker": snap.ticker,
+            "retrieved_at": snap.retrieved_at,
+            "quality": snap.quality.model_dump() if snap.quality else None,
+        }
+    except TickerResolutionError as exc:
+        raise HTTPException(status_code=400, detail={"message": str(exc), "query": exc.query,
+                            "suggestions": [s.model_dump() for s in exc.suggestions]}) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=404, detail=f"No data for '{query}': {exc}") from exc
+
+
 # ── Portfolio Advisor ──
 @router.post("/portfolio/advise", tags=["portfolio"])
 def portfolio_advise(req: PortfolioInput, use_llm: bool = True) -> dict:

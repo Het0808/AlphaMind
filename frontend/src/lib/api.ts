@@ -4,11 +4,25 @@
 // company. Every step is logged to the console for auditability.
 
 import {
-  mockCitationsFor, mockDebateFor, mockEval, mockReportFor, mockSnapshotFor,
+  mockCitationsFor, mockDebateFor, mockEval, mockReportFor,
 } from "./mock";
 import type {
-  Citation, DebateResult, EvalReport, FinancialSnapshot, InvestmentReport,
+  Citation, DebateResult, EvalReport, FinancialSnapshot, InvestmentReport, QualityReport,
 } from "./types";
+
+// Fail-safe snapshot: NO demo numbers. When live financial data is unavailable
+// every metric is null so the UI shows "Data unavailable" rather than a guess.
+function unavailableSnapshot(ticker: string): FinancialSnapshot {
+  const t = ticker.toUpperCase();
+  return {
+    ticker: t,
+    overview: { ticker: t, name: t },
+    metrics: { ticker: t, currency: t.endsWith(".NS") || t.endsWith(".BO") ? "INR" : "USD" },
+    providers_used: [], field_sources: {},
+    warnings: ["Live financial data unavailable — no verified source."],
+    quality: null,
+  };
+}
 
 const BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
 
@@ -59,8 +73,13 @@ export const api = {
   debate: (ticker: string, rounds = 2) =>
     post<DebateResult>("/v1/debate", { ticker, rounds }, () => mockDebateFor(ticker)),
 
+  // Financial data is LIVE-ONLY: no demo fallback. Unavailable → fail-safe snapshot.
   snapshot: (ticker: string) =>
-    get<FinancialSnapshot>(`/v1/snapshot/${encodeURIComponent(ticker)}`, () => mockSnapshotFor(ticker)),
+    get<FinancialSnapshot>(`/v1/snapshot/${encodeURIComponent(ticker)}`, () => unavailableSnapshot(ticker)),
+
+  quality: (ticker: string) =>
+    get<{ ticker: string; retrieved_at: string; quality: QualityReport | null }>(
+      `/v1/quality/${encodeURIComponent(ticker)}`, () => ({ ticker, retrieved_at: "", quality: null })),
 
   filingsSearch: (ticker: string, query: string) =>
     post<{ results: Citation[] }>("/v1/filings/search", { ticker, query }, () => ({ results: mockCitationsFor(ticker) })),

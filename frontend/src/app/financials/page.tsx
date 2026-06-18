@@ -1,18 +1,21 @@
 "use client";
 
+import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SectionHeading } from "@/components/shared/SectionHeading";
 import { TickerInput } from "@/components/shared/TickerInput";
 import { StatCard } from "@/components/shared/StatCard";
-import { PriceArea, MetricBars, RiskRadar } from "@/components/charts/Charts";
+import { MetricBars, RiskRadar } from "@/components/charts/Charts";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCompanyStore } from "@/lib/store";
 import { useCurrencyStore } from "@/lib/currency";
 import { formatMoney, nativeSymbol, toINR } from "@/lib/currency-format";
-import { mockPriceSeriesFor } from "@/lib/mock";
-import { fmtNumber } from "@/lib/utils";
+import { fmtNumber, fmtPct } from "@/lib/utils";
+
+const UNAVAILABLE = <span className="text-muted-foreground">Data unavailable</span>;
 
 export default function FinancialDashboard() {
   const snap = useCompanyStore((s) => s.financialData);
@@ -24,65 +27,77 @@ export default function FinancialDashboard() {
   const header = (
     <SectionHeading
       title="Financial Dashboard"
-      subtitle={snap ? `${snap.overview.name} · ${snap.metrics.fiscal_period}` : "Charts, fundamentals and risk decomposition"}
+      subtitle={snap ? `${snap.overview.name} · ${snap.metrics.fiscal_period ?? "live data"}` : "Live fundamentals, validated"}
       right={<TickerInput />}
     />
   );
 
-  if (loading || (selectedTicker && (!snap || !report))) {
+  if (loading || (selectedTicker && !snap)) {
     return <div className="mx-auto max-w-7xl space-y-4">{header}<Skeleton className="h-80 w-full" /></div>;
   }
-  if (!snap || !report) {
+  if (!snap) {
     return <div className="mx-auto max-w-7xl space-y-4">{header}<EmptyState /></div>;
   }
 
   const m = snap.metrics;
-  const priceSeries = mockPriceSeriesFor(snap.ticker);
-  const lastPx = priceSeries[priceSeries.length - 1].price;
-  const firstPx = priceSeries[0].price;
-  const pxChange = ((lastPx - firstPx) / firstPx) * 100;
   const cur = m.currency === "INR" ? "₹" : "$";
+  // Fail-safe: null/unverified → "Data unavailable", never a guess.
+  const money = (v?: number | null) => (v == null ? UNAVAILABLE : formatMoney(v, m.currency, rate));
+  const num = (v?: number | null) => (v == null ? UNAVAILABLE : fmtNumber(v));
+  const conf = snap.quality?.overall_confidence ?? 0;
 
-  // All bars converted to INR, shown in Lakh-Crore (₹ L Cr = 1e12).
-  const toBar = (v?: number | null) => toINR(v ?? 0, m.currency, rate) / 1e12;
+  const toBar = (v?: number | null) => (v == null ? 0 : toINR(v, m.currency, rate) / 1e12);
   const incomeBars = [
     { name: "Revenue", value: toBar(m.revenue) },
     { name: "Net inc.", value: toBar(m.net_income) },
     { name: "Op. CF", value: toBar(m.operating_cash_flow) },
     { name: "FCF", value: toBar(m.free_cash_flow) },
   ];
-  const riskAxes = [
+  const riskAxes = report ? [
     { axis: "Market", value: report.risk.risk_score },
     { axis: "Financial", value: Math.max(1, 11 - report.financials.financial_health_score) },
     { axis: "Business", value: report.risk.risk_score },
     { axis: "Valuation", value: Math.min(10, (m.pe_ratio ?? 20) / 5) },
     { axis: "Liquidity", value: Math.max(1, 11 - report.financials.financial_health_score) },
-  ];
+  ] : [];
 
   return (
     <div className="mx-auto max-w-7xl space-y-5">
       {header}
 
-      <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        <StatCard label="Price (indicative)" value={`${cur}${lastPx.toFixed(2)}`} tone={pxChange >= 0 ? "up" : "down"} sub={`${pxChange >= 0 ? "+" : ""}${pxChange.toFixed(1)}% (60d)`} />
-        <StatCard label="Market cap (INR)" value={formatMoney(m.market_cap, m.currency, rate)} />
-        <StatCard label="P/E (ratio)" value={fmtNumber(m.pe_ratio)} tone="warn" />
-        <StatCard label="EPS (not converted)" value={`${nativeSymbol(m.currency)}${fmtNumber(m.eps)}`} />
-        <StatCard label="Revenue (INR)" value={formatMoney(m.revenue, m.currency, rate)} tone="up" />
-        <StatCard label="FCF (INR)" value={formatMoney(m.free_cash_flow, m.currency, rate)} tone="up" />
+      <div className="flex items-center justify-between">
+        <span className="label">Monetary values in INR{m.currency !== "INR" ? ` · converted @ ₹${rate.toFixed(2)}/USD` : ""} · live verified data only</span>
+        {snap.warnings.length > 0 && <Badge variant="warn">{snap.warnings.length} data warning(s)</Badge>}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+      <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <StatCard label={`Price (${cur})`} value={m.price == null ? UNAVAILABLE : `${cur}${fmtNumber(m.price)}`} />
+        <StatCard label="Market cap (INR)" value={money(m.market_cap)} />
+        <StatCard label="P/E (ratio)" value={num(m.pe_ratio)} tone="warn" />
+        <StatCard label="EPS (not converted)" value={m.eps == null ? UNAVAILABLE : `${nativeSymbol(m.currency)}${fmtNumber(m.eps)}`} />
+        <StatCard label="Revenue (INR)" value={money(m.revenue)} tone="up" />
+        <StatCard label="FCF (INR)" value={money(m.free_cash_flow)} tone="up" />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
         <Card>
           <CardHeader className="flex-row items-center justify-between">
-            <CardTitle>Price trend (60d)</CardTitle>
-            <Badge variant="info">indicative</Badge>
+            <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Data quality</CardTitle>
+            <Badge variant={conf >= 0.8 ? "bull" : conf >= 0.5 ? "warn" : "bear"}>{fmtPct(conf, 0)} confidence</Badge>
           </CardHeader>
-          <CardContent><PriceArea data={priceSeries} /></CardContent>
+          <CardContent className="space-y-2 text-sm text-foreground/85">
+            <p>Sources: <span className="mono">{snap.providers_used.join(", ") || "none"}</span></p>
+            <p className="text-xs text-muted-foreground">
+              Metrics below the confidence threshold are hidden as “Data unavailable” rather than shown as estimates.
+            </p>
+            <Link href="/quality" className="inline-flex text-xs font-medium text-primary hover:underline">
+              View full data-quality report →
+            </Link>
+          </CardContent>
         </Card>
         <Card>
           <CardHeader><CardTitle>Risk decomposition</CardTitle></CardHeader>
-          <CardContent><RiskRadar data={riskAxes} /></CardContent>
+          <CardContent>{report ? <RiskRadar data={riskAxes} /> : <p className="text-xs text-muted-foreground">Awaiting analysis.</p>}</CardContent>
         </Card>
       </div>
 
@@ -96,11 +111,12 @@ export default function FinancialDashboard() {
           <CardContent>
             <p className="mb-2 text-xs text-muted-foreground">Which source supplied each field:</p>
             <div className="flex flex-wrap gap-1.5">
-              {Object.entries(snap.field_sources).map(([k, v]) => (
-                <Badge key={k} variant="secondary" className="mono">{k} → {v}</Badge>
-              ))}
+              {Object.keys(snap.field_sources).length === 0
+                ? <span className="text-xs text-muted-foreground">No verified sources available.</span>
+                : Object.entries(snap.field_sources).map(([k, v]) => (
+                    <Badge key={k} variant="secondary" className="mono">{k} → {v}</Badge>
+                  ))}
             </div>
-            <p className="mt-3 text-sm text-foreground/85">{report.financials.growth_trend}</p>
           </CardContent>
         </Card>
       </div>

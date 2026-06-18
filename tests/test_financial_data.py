@@ -110,6 +110,9 @@ def test_caching_avoids_second_call():
     assert calls["n"] == 2
 
 
-@pytest.mark.parametrize("ticker,valid", [("AAPL", True), ("BRK.B", True), ("", False), ("toolongticker", False)])
+@pytest.mark.parametrize("ticker,valid", [
+    ("AAPL", True), ("BRK.B", True), ("RELIANCE.NS", True), ("", False),
+    ("thissymboliswaytoolong", False),
+])
 def test_ticker_validation(ticker, valid):
     assert is_valid_ticker(ticker) is valid

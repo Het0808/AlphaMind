@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Activity, BarChart3, Brain, FlaskConical, LineChart, Briefcase, Building2,
+  Activity, BarChart3, Brain, FlaskConical, LineChart, Briefcase, Building2, ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +13,7 @@ const NAV = [
   { href: "/reasoning", label: "Agent Reasoning", icon: Brain },
   { href: "/financials", label: "Financial Dashboard", icon: LineChart },
   { href: "/portfolio", label: "Portfolio Advisor", icon: Briefcase },
+  { href: "/quality", label: "Data Quality", icon: ShieldCheck },
   { href: "/evaluation", label: "Evaluation", icon: FlaskConical },
 ];
 

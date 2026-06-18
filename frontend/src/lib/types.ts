@@ -66,13 +66,25 @@ export interface CompanyOverview {
   website?: string; employees?: number;
 }
 export interface FinancialMetrics {
-  ticker: string; revenue?: number; net_income?: number; eps?: number;
-  market_cap?: number; pe_ratio?: number; operating_cash_flow?: number;
-  free_cash_flow?: number; fiscal_period?: string; currency?: string;
+  ticker: string; price?: number | null; revenue?: number | null; net_income?: number | null;
+  eps?: number | null; market_cap?: number | null; pe_ratio?: number | null;
+  ebitda?: number | null; operating_cash_flow?: number | null; free_cash_flow?: number | null;
+  enterprise_value?: number | null; roe?: number | null; roce?: number | null;
+  fiscal_period?: string; currency?: string;
+}
+export interface FieldQuality {
+  field: string; value: number | null; unit: string; currency?: string | null;
+  sources: Record<string, number>; chosen_source?: string | null;
+  agreement?: number | null; confidence: number; status: string; issues: string[];
+}
+export interface QualityReport {
+  overall_confidence: number; providers: string[];
+  field_quality: Record<string, FieldQuality>; validations: string[]; last_updated: string;
 }
 export interface FinancialSnapshot {
   ticker: string; overview: CompanyOverview; metrics: FinancialMetrics;
   providers_used: string[]; field_sources: Record<string, string>; warnings: string[];
+  quality?: QualityReport | null;
 }
 
 // ── Debate ──

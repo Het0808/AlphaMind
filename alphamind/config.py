@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     enable_edgar: bool = True
     enable_fmp: bool = True
     data_cache_ttl: int = 3600  # seconds to cache a financial snapshot
+    # ── Data quality ──
+    data_confidence_threshold: float = 0.5   # below this a field is hidden (fail-safe)
+    cross_source_tolerance: float = 0.02     # 2% — providers within this "agree"
 
     # ── RAG over SEC filings ──
     enable_rag: bool = False  # off by default so the graph runs without a vector store
