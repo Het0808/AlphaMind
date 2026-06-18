@@ -101,6 +101,13 @@ class FinancialDataService:
 
         metrics = FinancialMetrics(ticker=ticker, **{k: metrics_raw.get(k) for k in METRIC_FIELDS})
 
+        # Indian listings (.NS/.BO) are priced in INR — normalize any provider
+        # that mislabels the currency (e.g. Yahoo returns USD for some .NS tickers).
+        if ticker.endswith((".NS", ".BO")) and (metrics.currency or "").upper() != "INR":
+            if metrics.currency:
+                warnings.append(f"provider reported {metrics.currency} for Indian listing {ticker}; normalized to INR")
+            metrics.currency = "INR"
+
         # ── Validate → score confidence → fail-safe ──
         issues = validate_metrics(metrics, ticker)
         providers_used = sorted(set(field_sources.values()))
