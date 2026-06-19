@@ -132,6 +132,24 @@ def test_same_period_sources_still_corroborate():
     assert q.status == "ok" and q.agreement is not None and q.agreement >= 0.8
 
 
+def test_indian_currency_conflict_hides_monetary_fields():
+    # Yahoo-style mixed currency: an Indian listing reporting USD → magnitudes are
+    # untrustworthy → hidden by the fail-safe (NOT relabeled to an ~83x-wrong number).
+    bad = {"INFY.NS": dict(revenue=2.0e10, net_income=3e9, market_cap=4.5e12, eps=76.0, currency="USD")}
+    snap = make_service([FakeProvider("yahoo", bad)]).get_snapshot("INFY.NS")
+    assert snap.metrics.currency == "INR"            # relabeled for display
+    assert snap.metrics.revenue is None              # but magnitude hidden
+    assert snap.metrics.market_cap is None
+    assert snap.quality.field_quality["revenue"].status == "unavailable"
+    assert any("currency conflict" in m for m in snap.quality.validations)
+
+
+def test_clean_indian_inr_not_penalized():
+    clean = {"RELIANCE.NS": dict(revenue=1.0e13, market_cap=1.8e13, eps=60.0, currency="INR")}
+    snap = make_service([FakeProvider("yahoo", clean)]).get_snapshot("RELIANCE.NS")
+    assert snap.metrics.revenue == 1.0e13 and snap.metrics.currency == "INR"
+
+
 def test_overall_confidence_and_provenance():
     table = {"INFY.NS": IN["INFY.NS"]}
     snap = make_service([FakeProvider("sec_edgar", table)]).get_snapshot("INFY.NS")

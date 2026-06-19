@@ -47,6 +47,9 @@ class FMPProvider(FinancialProvider):
 
         if resp.status_code in (401, 403):
             raise MissingCredentials("FMP rejected the API key", provider=self.name)
+        if resp.status_code == 402:
+            # Free tier doesn't cover this symbol (e.g. NSE/.NS listings).
+            raise ProviderUnavailable(f"{endpoint}: not covered by current FMP plan (HTTP 402)", provider=self.name)
         if resp.status_code == 429:
             raise RateLimited("FMP quota exceeded", provider=self.name)
         if resp.status_code >= 400:

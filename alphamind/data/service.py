@@ -26,6 +26,7 @@ from .providers import EdgarProvider, FinancialProvider, FMPProvider, YahooProvi
 from .quality import apply_fail_safe, build_quality
 from .schemas import (
     METRIC_FIELDS,
+    MONETARY_FIELDS,
     OVERVIEW_FIELDS,
     CompanyOverview,
     FinancialMetrics,
@@ -34,7 +35,7 @@ from .schemas import (
     is_valid_ticker,
     normalize_ticker,
 )
-from .validation import validate_metrics
+from .validation import ValidationIssue, validate_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -103,15 +104,24 @@ class FinancialDataService:
 
         metrics = FinancialMetrics(ticker=ticker, **{k: metrics_raw.get(k) for k in METRIC_FIELDS})
 
-        # Indian listings (.NS/.BO) are priced in INR — normalize any provider
-        # that mislabels the currency (e.g. Yahoo returns USD for some .NS tickers).
-        if ticker.endswith((".NS", ".BO")) and (metrics.currency or "").upper() != "INR":
-            if metrics.currency:
-                warnings.append(f"provider reported {metrics.currency} for Indian listing {ticker}; normalized to INR")
+        # Indian listings (.NS/.BO) are priced in INR. If a provider reports a
+        # different currency it has likely mixed currencies (e.g. Yahoo gives INFY's
+        # market cap in INR but revenue in USD) — we cannot trust the magnitudes, so
+        # we relabel to INR for display BUT flag the monetary fields so the fail-safe
+        # hides them rather than show an ~83x-wrong number.
+        currency_conflict = (
+            ticker.endswith((".NS", ".BO")) and (metrics.currency or "").upper() not in ("INR", "")
+        )
+        if currency_conflict:
+            warnings.append(f"provider reported {metrics.currency} for Indian listing {ticker}; magnitudes unreliable, monetary fields hidden")
             metrics.currency = "INR"
 
         # ── Validate → score confidence → fail-safe ──
         issues = validate_metrics(metrics, ticker)
+        if currency_conflict:
+            for f in MONETARY_FIELDS:
+                if getattr(metrics, f, None) is not None:
+                    issues.append(ValidationIssue(f, "error", f"unreliable magnitude: currency conflict on {ticker}"))
         providers_used = sorted(set(field_sources.values()))
         now = datetime.now(timezone.utc).isoformat()
         quality = build_quality(
