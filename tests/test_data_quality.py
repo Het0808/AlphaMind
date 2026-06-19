@@ -150,6 +150,17 @@ def test_clean_indian_inr_not_penalized():
     assert snap.metrics.revenue == 1.0e13 and snap.metrics.currency == "INR"
 
 
+def test_nse_provider_parse_and_us_noop():
+    from alphamind.data.providers.nse import NSEProvider, parse_quote
+    payload = {"priceInfo": {"lastPrice": 1402.5}, "metadata": {"pdSymbolPe": "24.6"},
+               "securityInfo": {"issuedSize": 13_532_000_000}}
+    m = parse_quote(payload)
+    assert m["price"] == 1402.5 and m["currency"] == "INR" and m["fiscal_period"] == "spot"
+    assert m["market_cap"] == 1402.5 * 13_532_000_000  # derived cap
+    # US tickers are a no-op (no NSE network call, no data).
+    assert NSEProvider().get_metrics("AAPL") == {} and NSEProvider().get_overview("MSFT") == {}
+
+
 def test_overall_confidence_and_provenance():
     table = {"INFY.NS": IN["INFY.NS"]}
     snap = make_service([FakeProvider("sec_edgar", table)]).get_snapshot("INFY.NS")

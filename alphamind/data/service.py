@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional
 from ..config import get_settings
 from .cache import TTLCache
 from .exceptions import DataProviderError, InvalidTicker, TickerNotFound
-from .providers import EdgarProvider, FinancialProvider, FMPProvider, YahooProvider
+from .providers import EdgarProvider, FinancialProvider, FMPProvider, NSEProvider, YahooProvider
 from .quality import apply_fail_safe, build_quality
 from .schemas import (
     METRIC_FIELDS,
@@ -48,6 +48,8 @@ def build_default_providers(settings=None, shared_cache: Optional[TTLCache] = No
         providers.append(FMPProvider(api_key=settings.fmp_api_key))
     if getattr(settings, "enable_yahoo", True):
         providers.append(YahooProvider())
+    if getattr(settings, "enable_nse", True):
+        providers.append(NSEProvider(cache=shared_cache))
     if getattr(settings, "enable_edgar", True):
         providers.append(EdgarProvider(user_agent=settings.sec_user_agent, cache=shared_cache))
     return providers

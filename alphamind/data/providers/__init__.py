@@ -8,6 +8,7 @@ degrades coverage rather than failing the request.
 from .base import FinancialProvider
 from .edgar import EdgarProvider
 from .fmp import FMPProvider
+from .nse import NSEProvider
 from .yahoo import YahooProvider
 
-__all__ = ["FinancialProvider", "YahooProvider", "EdgarProvider", "FMPProvider"]
+__all__ = ["FinancialProvider", "YahooProvider", "EdgarProvider", "FMPProvider", "NSEProvider"]

@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     enable_yahoo: bool = True
     enable_edgar: bool = True
     enable_fmp: bool = True
+    enable_nse: bool = True   # NSE India (second source for .NS stocks; may be blocked from servers)
     data_cache_ttl: int = 3600  # seconds to cache a financial snapshot
     # ── Data quality ──
     data_confidence_threshold: float = 0.5   # below this a field is hidden (fail-safe)
